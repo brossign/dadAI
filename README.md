@@ -1,10 +1,7 @@
-
 # DadAI – An LLM-based assistant for new dads 🤖👶
 
 **DadAI** is an open-source project built to support new fathers during pregnancy and early parenthood.  
 The idea is simple: provide emotionally intelligent, practical guidance powered by LLMs — and built on **Mistral 7B**.
-
----
 
 ## 🚀 Why DadAI?
 
@@ -16,8 +13,6 @@ DadAI aims to provide a clear, AI-driven interface that supports:
 - Concrete actions and reminders
 - Guidance on sleep, communication, and partner well-being
 
----
-
 ## 🧠 Tech Stack
 
 - [x] Mistral 7B (quantized with GGUF)
@@ -25,8 +20,6 @@ DadAI aims to provide a clear, AI-driven interface that supports:
 - [x] Python (Transformers, PEFT, Datasets)
 - [x] Deployment via [LocalAI](https://github.com/go-skynet/LocalAI)
 - [ ] Web interface (optional – future)
-
----
 
 ## 📂 Project Structure
 
@@ -40,14 +33,10 @@ dadAI/
 └── README.md
 ```
 
----
-
 ## 💬 Status
 
 This project is currently in early development.  
 Fine-tuning and inference will be tested on [RunPod](https://www.runpod.io/) using QLoRA and Mistral 7B.
-
----
 
 ## 📌 Goals
 
@@ -55,15 +44,11 @@ Fine-tuning and inference will be tested on [RunPod](https://www.runpod.io/) usi
 - Optimize responses via QLoRA and test performance locally
 - Package the assistant behind a simple OpenAI-compatible API
 
----
-
 ## 🧪 Local Inference with Mistral 7B (via LocalAI)
 
 You can run DadAI locally using [LocalAI](https://github.com/go-skynet/LocalAI), an open-source alternative to the OpenAI API.
 
 This setup uses the **Mistral 7B Instruct model** in GGUF format and exposes a local `/v1/chat/completions` endpoint, fully compatible with OpenAI’s API.
-
----
 
 ### 🧠 1. Download the model
 
@@ -75,8 +60,6 @@ wget https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/
 
 > ⚠️ This file is **not included in the repo** (see `localai/models/README.md` for details)
 
----
-
 ### 🐳 2. Start the API with Docker
 
 From the `localai/` folder, launch the container:
@@ -86,8 +69,6 @@ docker-compose up -d
 ```
 
 This will spin up LocalAI on `http://localhost:8080`, using the model and config provided.
-
----
 
 ### 💬 3. Test the API with a simple prompt
 
@@ -111,8 +92,6 @@ curl http://localhost:8080/v1/chat/completions \
 ```
 
 If everything is working, you should receive a response from the Mistral model locally 🎉
-
----
 
 ## 👤 Author
 
