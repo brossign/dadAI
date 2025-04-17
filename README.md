@@ -6,6 +6,8 @@ The idea is simple: provide emotionally intelligent, practical guidance powered 
 ## 🚀 Why DadAI?
 
 Most resources around parenting are either mother-centric or scattered across forums.  
+As a first-time dad, I realized how hard it can be to find support that's both practical and emotionally relevant, and I wanted to make things easier for other future dads.  
+
 DadAI aims to provide a clear, AI-driven interface that supports:
 - Emotional support during pregnancy
 - Concrete actions and reminders
@@ -28,3 +30,21 @@ dadAI/
 ├── scripts/            # LoRA training and LocalAI deployment scripts
 ├── requirements.txt    # Project dependencies
 └── README.md
+
+## 💬 Status
+
+This project is currently in early development.  
+Fine-tuning and inference will be tested on [RunPod](https://www.runpod.io/) using QLoRA and Mistral 7B.
+
+## 📌 Goals
+
+- Train an assistant on real parenting data (Reddit, BabyCenter)
+- Optimize responses via QLoRA and test performance locally
+- Package the assistant behind a simple OpenAI-compatible API
+
+## 👤 Author
+
+**Benoît Rossignol**  
+📍 Geneva  
+💼 Solution Architect  
+🧠 AI & PreSales Leader
