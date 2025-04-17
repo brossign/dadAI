@@ -1,0 +1,7 @@
+transformers
+peft
+datasets
+bitsandbytes
+scipy
+accelerate
+localai
