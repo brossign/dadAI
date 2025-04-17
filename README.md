@@ -30,6 +30,7 @@ dadAI/
 ├── scripts/            # LoRA training and LocalAI deployment scripts
 ├── requirements.txt    # Project dependencies
 └── README.md
+```
 
 ## 💬 Status
 
