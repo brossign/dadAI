@@ -21,6 +21,17 @@ DadAI aims to provide a clear, AI-driven interface that supports:
 - [x] Deployment via [LocalAI](https://github.com/go-skynet/LocalAI)
 - [ ] Web interface (optional – future)
 
+## 🧪 Local Inference via LocalAI
+
+You can run DadAI locally using [LocalAI](https://github.com/go-skynet/LocalAI) and a quantized Mistral 7B model.
+
+### 1. Download the model (GGUF format)
+You can use one of the following (e.g. from TheBloke on Hugging Face):
+
+```bash
+wget https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf -P models/
+```
+
 ## 📂 Structure
 
 ```bash
