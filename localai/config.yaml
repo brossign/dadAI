@@ -1,0 +1,12 @@
+- name: mistral
+  backend: llama-cpp
+  parameters:
+    model: mistral-7b-instruct-v0.1.Q4_K_M.gguf
+    f16: true
+    threads: 4
+    temperature: 0.7
+    top_p: 0.9
+    stopwords:
+      - "<|user|>"
+      - "<|assistant|>"
+  context_size: 4096
