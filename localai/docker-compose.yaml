@@ -1,12 +1,13 @@
-version: '3.8'
+version: '3.8'  # version moderne de Docker Compose
 
 services:
   localai:
-    image: localai/localai:latest
+    image: localai:arm64 # image compatible ARM64 de LocalAI (Mac Apple Silicon), depuis https://github.com/go-skynet/LocalAI.git
+    platform: linux/arm64
     ports:
-      - "8080:8080"
+      - "8080:8080"  # expose l'API HTTP en local
     volumes:
-      - ./models:/models
-      - ./config.yaml:/build/config.yaml
+      - ./models:/models  # mappe ton modèle GGUF local
+      - ./config.yaml:/build/config.yaml  # charge un fichier de config custom si tu le modifies
     environment:
-      - MODELS_PATH=/models
+      - MODELS_PATH=/models  # indique où LocalAI doit chercher les modèles

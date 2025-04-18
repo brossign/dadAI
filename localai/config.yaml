@@ -1,12 +1,12 @@
-- name: mistral
-  backend: llama-cpp
+- name: mistral                    # Nom utilisé dans les requêtes (doit matcher "model": "mistral")
+  backend: llama-cpp              # LocalAI utilise llama.cpp en backend pour les modèles GGUF
   parameters:
-    model: mistral-7b-instruct-v0.1.Q4_K_M.gguf
-    f16: true
-    threads: 4
-    temperature: 0.7
-    top_p: 0.9
-    stopwords:
+    model: mistral-7b-instruct-v0.1.Q4_K_M.gguf  # Exactement le nom de ton fichier dans /models
+    f16: true                     # Utilisation de float16 si supporté (sinon ignoré)
+    threads: 6                    # Bien pour un Mac M3 — tu peux ajuster si tu veux plus de perf
+    temperature: 0.7              # Température modérée = pas trop aléatoire
+    top_p: 0.9                    # Filtrage nucleus, bon pour des réponses cohérentes
+    stopwords:                    # Très utile pour couper les répétitions de rôles
       - "<|user|>"
       - "<|assistant|>"
-  context_size: 4096
+  context_size: 4096              # Taille de contexte, max supporté par Mistral 7B
