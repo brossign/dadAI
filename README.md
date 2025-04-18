@@ -60,22 +60,45 @@ wget https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/
 
 > ⚠️ This file is **not included in the repo** (see `localai/models/README.md` for details)
 
-### 🐳 2. Start the API with Docker
+---
 
-From the `localai/` folder, launch the container:
+### 🧰 2. Build the LocalAI image (for Mac M1/M2/M3)
+
+LocalAI does not yet provide ARM images, so you need to build it locally (only once):
 
 ```bash
+git clone https://github.com/go-skynet/LocalAI.git localai-build
+cd localai-build
+
+docker buildx build --platform linux/arm64 \
+  --build-arg BACKENDS="llama-cpp" \
+  -t localai:arm64 \
+  --load .
+```
+
+This builds a lightweight LocalAI image with only `llama.cpp` (required for `.gguf` models) and loads it into Docker.
+
+---
+
+### 🐳 3. Start the API with Docker
+
+From the `localai/` folder, launch the container using the image you just built:
+
+```bash
+cd dadAI/localai
 docker-compose up -d
 ```
 
-This will spin up LocalAI on `http://localhost:8080`, using the model and config provided.
+Your model will now be served at `http://localhost:8080`.
 
-### 💬 3. Test the API with a simple prompt
+---
 
-You can use the test script provided:
+### 💬 4. Test the API with a simple prompt
+
+Use the test script:
 
 ```bash
-bash localai/test_curl.sh
+bash scripts/test_curl_mistral_docker.sh
 ```
 
 Or manually via `curl`:
@@ -91,7 +114,14 @@ curl http://localhost:8080/v1/chat/completions \
   }' | jq
 ```
 
-If everything is working, you should receive a response from the Mistral model locally 🎉
+If everything is working, you should receive a response from Mistral locally 🎉
+
+---
+
+More to come soon:
+- Fine-tuning instructions (QLoRA)
+- LangChain agent with memory
+- Streamlit chatbot
 
 ## 👤 Author
 
