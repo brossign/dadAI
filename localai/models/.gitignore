@@ -1,5 +1,0 @@
-# Ignore all model files
-*.gguf
-*.bin
-*.pth
-*.pt

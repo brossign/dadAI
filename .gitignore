@@ -127,6 +127,10 @@ localai/models/*
 
 # Local Docker build folder (built manually)
 localai-build/
+localai-docker/go*.tar.gz
+localai-docker/__pycache__/
+localai-docker/*.log
+localai-docker/*.docker.tar
 
 # Docker & build cache
 docker-compose.override.yml
