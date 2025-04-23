@@ -6,6 +6,8 @@ from tqdm import tqdm
 import time
 from dotenv import load_dotenv
 
+# Script : collect_reddit_data.py - etape 1
+
 # 📂 Charge les variables d'environnement
 load_dotenv()
 

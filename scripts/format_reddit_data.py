@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+# Script : format_reddit_data.py - etape 2
+# But : transforme les données brutes (reddit_dataset.jsonl) → format prompt / completion.
 #{
 #  "prompt": "Post Reddit : [Titre]\n\n[Contenu du post Reddit]\n\nRéponse du papa :",
 #  "completion": "[Top commentaire]"
