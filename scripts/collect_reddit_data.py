@@ -5,7 +5,6 @@ from datetime import datetime
 from tqdm import tqdm
 import time
 from dotenv import load_dotenv
-from pathlib import Path
 
 # 📂 Charge les variables d'environnement
 load_dotenv()
@@ -23,8 +22,7 @@ reddit = praw.Reddit(
 subreddits = ["NewDads", "Daddit", "BabyBumps", "Parenting"]
 max_posts_per_sub = 250
 min_score = 10
-output_file = Path(__file__).parent.parent / "data" / "reddit_dataset.jsonl"
-# output_file = "reddit_dataset.jsonl"
+output_file = "reddit_dataset.jsonl"
 max_years_back = 10
 
 def get_top_posts(subreddit_name, limit_per_year, max_years=10):
