@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 # 📁 Chemin du fichier à valider
-dataset_path = Path("data/formatted_dataset.jsonl").resolve()
+dataset_path = Path("data/cleaned_dataset.jsonl").resolve()
 
 # 📊 Statistiques
 total = 0

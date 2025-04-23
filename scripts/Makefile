@@ -1,4 +1,5 @@
 # 📦 Makefile pour automatiser les scripts de préparation des données DadAI
+# A la racine: make -C scripts
 
 DATA_DIR=./data
 SCRIPTS_DIR=./scripts
