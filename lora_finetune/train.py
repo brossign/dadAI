@@ -1,31 +1,44 @@
 import os
-import time
 import torch
+import logging
+import time
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, Trainer, DataCollatorForLanguageModeling
 from peft import LoraConfig, get_peft_model, TaskType, prepare_model_for_kbit_training
 from datasets import load_dataset
 from datetime import datetime
 
-# 🕓 Mesure du temps total
-start_time = time.time()
+# ========================
+# 📓 CONFIGURATION
+# ========================
+data_path = "../data/cleaned_dataset.jsonl"
+model_name = "mistralai/Mistral-7B-v0.1"
+run_name = f"dadAI-lora-{datetime.now().strftime('%Y%m%d-%H%M')}"
+output_dir = "outputs"
+log_file_path = os.path.join(output_dir, f"{run_name}.log")
+
+# ========================
+# 📜 LOGGING SETUP
+# ========================
+os.makedirs(output_dir, exist_ok=True)
+logging.basicConfig(
+    filename=log_file_path,
+    filemode='w',
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger()
 
 try:
-    # 📁 Chemin vers les données HF (créées par prepare_dataset.py)
-    data_path = "../data/cleaned_dataset.jsonl"
-    if not os.path.exists(data_path):
-        raise FileNotFoundError(f"❌ Dataset introuvable à : {data_path}")
-
-    # 🧠 Chargement du tokenizer
-    model_name = "mistralai/Mistral-7B-v0.1"
-    print("🔡 Chargement du tokenizer...")
+    logger.info("📦 Loading tokenizer...")
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
 
-    # 📦 Chargement du dataset
-    print("📦 Chargement du dataset...")
+    logger.info("📦 Loading dataset...")
+    if not os.path.exists(data_path):
+        raise FileNotFoundError(f"Dataset not found: {data_path}")
+
     dataset = load_dataset("json", data_files=data_path, split="train")
 
-    # ✂️ Tokenisation
     def tokenize(example):
         return tokenizer(
             example["prompt"],
@@ -35,11 +48,10 @@ try:
             max_length=512,
         )
 
-    print("✂️ Tokenisation en cours...")
+    logger.info("🔄 Tokenizing dataset...")
     dataset = dataset.map(tokenize, remove_columns=["prompt", "completion"])
 
-    # ⚙️ Configuration LoRA
-    print("⚙️ Configuration de LoRA...")
+    logger.info("⚙️ Configuring LoRA...")
     lora_config = LoraConfig(
         r=8,
         lora_alpha=16,
@@ -49,8 +61,7 @@ try:
         task_type=TaskType.CAUSAL_LM
     )
 
-    # 🚀 Chargement du modèle en 4-bit
-    print("🚀 Chargement du modèle 4-bit...")
+    logger.info("🚀 Loading base model in 4-bit...")
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         load_in_4bit=True,
@@ -60,16 +71,14 @@ try:
     model = prepare_model_for_kbit_training(model)
     model = get_peft_model(model, lora_config)
 
-    # 📚 Data collator
     collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
         mlm=False
     )
 
-    # 🏁 Paramètres d'entraînement
-    run_name = f"dadAI-lora-{datetime.now().strftime('%Y%m%d-%H%M')}"
+    logger.info("📋 Preparing training arguments...")
     training_args = TrainingArguments(
-        output_dir="outputs",
+        output_dir=output_dir,
         per_device_train_batch_size=4,
         gradient_accumulation_steps=2,
         num_train_epochs=3,
@@ -82,7 +91,6 @@ try:
         run_name=run_name
     )
 
-    # 📊 Entraîneur HF
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -91,16 +99,28 @@ try:
         data_collator=collator
     )
 
-    # ✅ Lancement entraînement
-    print("🚀 Entraînement en cours...")
+    # ========================
+    # 🚀 TRAINING
+    # ========================
+    logger.info("🚀 Starting training...")
+    start_time = time.time()
     trainer.train()
+    end_time = time.time()
+    training_duration = end_time - start_time
 
-    # 💾 Sauvegarde des poids LoRA
-    print("💾 Sauvegarde des poids LoRA...")
-    model.save_pretrained("outputs/lora_weights")
+    # ========================
+    # 💾 SAVE LoRA WEIGHTS
+    # ========================
+    model.save_pretrained(os.path.join(output_dir, "lora_weights"))
+    logger.info("✅ Training complete.")
+    logger.info(f"💾 LoRA weights saved to {os.path.join(output_dir, 'lora_weights')}")
+    logger.info(f"🕒 Training duration: {training_duration:.2f} seconds (~{training_duration / 60:.2f} min)")
 
-    elapsed = time.time() - start_time
-    print(f"✅ Entraînement terminé en {elapsed:.2f} secondes.")
+    print("✅ Entraînement terminé. Résumé:")
+    print(f"   - Checkpoints : {output_dir}/lora_weights")
+    print(f"   - Logs : {log_file_path}")
+    print(f"   - Durée : {training_duration / 60:.2f} minutes")
 
 except Exception as e:
-    print(f"❌ Erreur pendant le fine-tuning : {e}")
+    logger.error(f"❌ Training failed: {e}")
+    print(f"❌ Une erreur est survenue : {e}")
