@@ -3,23 +3,25 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from peft import PeftModel
 import sys
 
-# Load base model + LoRA weights
-# Test 1 custom prompt
-# Display the generated Reddit-style reply
-
 # ========================
-# 📦 CONFIG
+# 📦 CONFIGURATION
 # ========================
-base_model = "mistralai/Mistral-7B-v0.1"
+base_model = "TheBloke/Mistral-7B-Instruct-v0.1-GPTQ"
 lora_weights_path = "outputs/lora_weights"
+max_new_tokens = 150
+temperature = 0.7
+top_p = 0.9
 
 # ========================
 # 🚀 Load Model + Tokenizer
 # ========================
 try:
     print("🔄 Loading base model in 4-bit...")
-    bnb_config = BitsAndBytesConfig(load_in_4bit=True)
-    model = AutoModelForCausalLM.from_pretrained(base_model, quantization_config=bnb_config, device_map="auto")
+    model = AutoModelForCausalLM.from_pretrained(
+        base_model,
+        device_map="auto",
+        trust_remote_code=True
+    )
     
     print("🔗 Loading LoRA fine-tuned weights...")
     model = PeftModel.from_pretrained(model, lora_weights_path)
@@ -34,34 +36,42 @@ except Exception as e:
     sys.exit(1)
 
 # ========================
-# 💬 Inference Loop
+# 💬 Inference Function
+# ========================
+def generate_reply(user_post):
+    prompt = f"Post Reddit : {user_post}\n\nDad's reply:"
+    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+
+    with torch.no_grad():
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            do_sample=True
+        )
+
+    reply = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return reply.split("Dad's reply:")[-1].strip()
+
+# ========================
+# 🎯 Main Inference Loop
 # ========================
 try:
-    print("🧠 Ready! Type your Reddit-style post (or Ctrl+C to exit).")
+    print("🧠 DadAI is ready! (Ctrl+C to exit)")
     while True:
-        user_input = input("\nPost Reddit ✏️ : ")
+        user_input = input("\n✏️  Your Reddit post: ").strip()
 
-        if not user_input.strip():
+        if not user_input:
             print("⚠️ Please enter a non-empty prompt.")
             continue
 
-        prompt = f"Post Reddit : {user_input}\n\nDad's reply:"
-        inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-
-        with torch.no_grad():
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=150,
-                temperature=0.7,
-                top_p=0.9,
-                do_sample=True
-            )
-
-        reply = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        print("\n🤖 DadAI's reply:")
-        print(reply.split("Dad's reply:")[-1].strip())
+        dad_reply = generate_reply(user_input)
+        print("\n🤖 DadAI's reply:\n" + "-"*50)
+        print(dad_reply)
+        print("-"*50)
 
 except KeyboardInterrupt:
-    print("\n👋 Exiting. Bye!")
+    print("\n👋 Exiting DadAI. See you soon!")
 except Exception as e:
     print(f"❌ Error during inference: {e}")

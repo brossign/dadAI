@@ -2,7 +2,7 @@ import os
 import torch
 import logging
 import time
-from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, Trainer, DataCollatorForLanguageModeling
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, TrainingArguments, Trainer, DataCollatorForLanguageModeling
 from peft import LoraConfig, get_peft_model, TaskType, prepare_model_for_kbit_training
 from datasets import load_dataset
 from datetime import datetime
@@ -11,11 +11,11 @@ from datetime import datetime
 # 📓 CONFIGURATION
 # ========================
 data_path = "../data/cleaned_dataset.jsonl"
-model_name = "mistralai/Mistral-7B-v0.1"
+model_name = "TheBloke/Mistral-7B-Instruct-v0.1-GPTQ"
 run_name = f"dadAI-lora-{datetime.now().strftime('%Y%m%d-%H%M')}"
 output_dir = "outputs"
 log_file_path = os.path.join(output_dir, f"{run_name}.log")
-timeout_minutes = 50  # Maximum budget for training
+timeout_minutes = 50  # Safety timeout
 
 # ========================
 # 📜 LOGGING SETUP
@@ -65,8 +65,8 @@ try:
     logger.info("🚀 Loading base model in 4-bit...")
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
-        load_in_4bit=True,
-        device_map="auto"
+        device_map="auto",
+        trust_remote_code=True
     )
 
     model = prepare_model_for_kbit_training(model)
@@ -120,11 +120,11 @@ try:
     logger.info(f"💾 LoRA weights saved to {os.path.join(output_dir, 'lora_weights')}")
     logger.info(f"🕒 Training duration: {training_duration:.2f} seconds (~{training_duration / 60:.2f} min)")
 
-    print("✅ Entraînement terminé. Résumé:")
-    print(f"   - Checkpoints : {output_dir}/lora_weights")
-    print(f"   - Logs : {log_file_path}")
-    print(f"   - Durée : {training_duration / 60:.2f} minutes")
+    print("✅ Training finished. Summary:")
+    print(f"   - Checkpoints: {output_dir}/lora_weights")
+    print(f"   - Logs: {log_file_path}")
+    print(f"   - Duration: {training_duration / 60:.2f} minutes")
 
 except Exception as e:
     logger.error(f"❌ Training failed: {e}")
-    print(f"❌ Une erreur est survenue : {e}")
+    print(f"❌ An error occurred: {e}")
