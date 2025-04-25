@@ -15,6 +15,7 @@ model_name = "mistralai/Mistral-7B-v0.1"
 run_name = f"dadAI-lora-{datetime.now().strftime('%Y%m%d-%H%M')}"
 output_dir = "outputs"
 log_file_path = os.path.join(output_dir, f"{run_name}.log")
+timeout_minutes = 50  # Maximum budget for training
 
 # ========================
 # 📜 LOGGING SETUP
@@ -107,6 +108,9 @@ try:
     trainer.train()
     end_time = time.time()
     training_duration = end_time - start_time
+
+    if training_duration > timeout_minutes * 60:
+        logger.warning(f"⚠️ Training exceeded {timeout_minutes} minutes limit!")
 
     # ========================
     # 💾 SAVE LoRA WEIGHTS
