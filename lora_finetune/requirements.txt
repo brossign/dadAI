@@ -1,0 +1,17 @@
+# 🔧 Core libraries
+transformers==4.39.3
+datasets==2.18.0
+accelerate==0.27.2
+peft==0.10.0
+trl==0.8.6
+
+# 🧠 Quantization + LoRA support
+bitsandbytes==0.41.3
+
+# 🧪 Tracking / logging
+tqdm==4.66.2
+tensorboard==2.16.2
+scikit-learn==1.4.1
+
+# 🚀 Stability (for CUDA, math ops)
+scipy
