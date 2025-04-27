@@ -56,7 +56,7 @@ try:
     lora_config = LoraConfig(
         r=8,
         lora_alpha=16,
-        target_modules=["q_proj", "v_proj"],
+        target_modules=["q_proj", "v_proj"], #  attention mechanism trained
         lora_dropout=0.05,
         bias="none",
         task_type=TaskType.CAUSAL_LM
