@@ -4,6 +4,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 
 # Goal: Merge LoRA weight + Model and convert it to GGUF to be deployed in LocalAI
+# Pre-requisite: you need a float16 not quantified model 
 
 # ========================
 # 📓 CONFIGURATION

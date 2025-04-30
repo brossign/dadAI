@@ -25,16 +25,43 @@ DadAI aims to provide a clear, AI-driven interface that supports:
 
 ```
 dadAI/
-├── data/               # Dataset from Reddit, BabyCenter, etc.
-├── notebooks/          # Fine-tuning & inference notebooks
-├── scripts/            # LoRA training 
-├── requirements.txt    # Project dependencies
+├── data/                       # Datasets (raw, cleaned, formatted)
+│   ├── reddit_dataset.jsonl
+│   ├── cleaned_dataset.jsonl
+│   └── formatted_dataset.jsonl
+├── lora_finetune/             # Fine-tuning and inference
+│   ├── train.py
+│   ├── merge_lora.py
+│   ├── inference.py
+│   ├── inference_batch.py
+│   ├── prepare_dataset.py
+│   └── convert_to_gguf.py
+├── scripts/                   # Data collection, formatting, tests
+│   ├── collect_reddit_data.py
+│   ├── format_reddit_data.py
+│   ├── clean_dataset.py
+│   ├── check_dataset_format.py
+│   ├── test_reddit_connection.py
+│   └── show_random_sample.py
+├── models/                    # LocalAI-compatible GGUF models
+├── tests/                     # Prompt examples, screenshots
+│   └── Prompt dadAI.png
+├── requirements.txt
+├── .env                       # PRAW credentials
+├── .gitignore
 └── README.md
 ```
 
 ## 💬 Status
 
-This project is currently in early development.  
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1. Setup | Conda, PRAW, Mistral, VS Code | ✅ Done |
+| 2. Data | Reddit scraping + cleaning + format | ✅ Done (400+ posts) |
+| 3. Fine-tune | LoRA (QLoRA) with GPTQ Mistral | ✅ Done |
+| 4. Inference | Working with corrected weights | ✅ Done |
+| 5. Merge & Deploy | GGUF export + LocalAI run | 🔜 Next |
+
 Fine-tuning and inference will be tested on [RunPod](https://www.runpod.io/) using QLoRA and Mistral 7B.
 
 ## 📌 Goals
@@ -44,6 +71,16 @@ Fine-tuning and inference will be tested on [RunPod](https://www.runpod.io/) usi
 - Package the assistant behind a simple OpenAI-compatible API
 
 ## 🧪 Local Inference with Mistral 7B (via LocalAI)
+
+- **Model:** TheBloke/Mistral-7B-Instruct-v0.1-GPTQ
+- **Quantization:** GPTQ 4-bit
+- **Fine-Tuning:** QLoRA + PEFT (LoRA adapters)
+- **Data:** 400+ high-quality Reddit pairs (Instruction/Response)
+- **Output:** LoRA weights (~100MB) + merged model planned
+
+- `inference.py`: basic text generation
+- `inference_batch.py`: batched inputs
+- `dadAI_inference_test.ipynb`: sandbox notebook
 
 You can run DadAI locally using [LocalAI](https://github.com/go-skynet/LocalAI), an open-source alternative to the OpenAI API.
 
