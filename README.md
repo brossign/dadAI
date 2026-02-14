@@ -47,7 +47,7 @@ A complete rewrite, taking advantage of Apple's **MLX framework** which now make
 
 - **Model:** [Mistral 7B Instruct v0.3 (4-bit MLX)](https://huggingface.co/mlx-community/Mistral-7B-Instruct-v0.3-4bit) — 3.8 GB on disk
 - **Training:** LoRA fine-tuning via [mlx-lm](https://github.com/ml-explore/mlx-lm) on Apple Silicon
-- **Data:** Reddit parenting communities + synthetic augmentation
+- **Data:** Hybrid — real Reddit questions + curated & synthetic dad responses
 - **UI:** Gradio chat interface
 - **Hosting:** Hugging Face Spaces (free)
 - **Language:** Python 3.11
@@ -120,7 +120,9 @@ print(response)
 | 1. Environment | Python 3.11, MLX, virtual env | ✅ Done |
 | 2. Base model | Mistral 7B v0.3 downloaded + verified | ✅ Done |
 | 3. Data pipeline | Fix collection, formatting, cleaning | 🔜 Next |
-| 4. Dataset | Expand to 1,000–2,000 quality pairs | ⬜ Planned |
+| 4a. Dataset | Re-run Reddit collection, curate best pairs (~300-500) | ⬜ Planned |
+| 4b. Dataset | Synthetic enhanced responses for Reddit questions (~500-800) | ⬜ Planned |
+| 4c. Dataset | Synthetic pairs for under-covered topics (~200-300) | ⬜ Planned |
 | 5. Training | LoRA fine-tuning on Mac via MLX | ⬜ Planned |
 | 6. Evaluation | Test and iterate on responses | ⬜ Planned |
 | 7. UI | Gradio chat interface | ⬜ Planned |
@@ -129,9 +131,9 @@ print(response)
 ## 👤 Author
 
 **Benoît Rossignol**
-📍 Montreal
+📍 France
 💼 Solution Architect @ Shopify
 🧠 AI Enthusiast & Builder
 
 - [GitHub](https://github.com/brossign)
-- [LinkedIn](https://www.linkedin.com/in/benoitrossignol/)
+- [LinkedIn](https://www.linkedin.com/in/benoit-rossignol/)
