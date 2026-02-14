@@ -120,6 +120,9 @@ cython_debug/
 *.bin
 *.gguf
 
+# MLX model directory (downloaded, not committed — too large)
+models/
+
 # Ignore heavy downloaded model files, but keep readme/gitignore
 localai/models/*
 !localai/models/.gitignore
