@@ -123,6 +123,9 @@ cython_debug/
 # MLX model directory (downloaded, not committed — too large)
 models/
 
+# LoRA adapters (generated during training, can be large)
+adapters/
+
 # Ignore heavy downloaded model files, but keep readme/gitignore
 localai/models/*
 !localai/models/.gitignore

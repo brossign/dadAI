@@ -1,0 +1,51 @@
+# DadAI v2 — MLX LoRA Training Configuration
+# Optimized for MacBook Pro M1 16GB
+#
+# Key design decisions:
+# - QLoRA (model is already 4-bit quantized) — saves memory
+# - batch_size 1 — fits comfortably in 16GB (peak ~6 GB)
+# - mask_prompt: true — only train on completions (fixes v1's critical bug)
+# - num_layers: 16 — fine-tune all LoRA-capable layers
+# - grad_checkpoint: true — trades compute for memory
+# - 1000 iterations ≈ half epoch over 1948 train examples
+# - Learning rate 1e-5 for stable QLoRA convergence
+#
+# Estimated time: ~30-90 minutes on M1 (depends on seq lengths)
+# Peak memory: ~6 GB (leaving plenty for other apps)
+
+# Model
+model: models/mistral-7b-instruct-v0.3-4bit
+
+# Training mode
+train: true
+fine_tune_type: lora
+
+# Data — prepared by scripts/prepare_training_data.py
+data: data/mlx_training
+mask_prompt: true
+
+# LoRA parameters
+lora_parameters:
+  rank: 16
+  dropout: 0.05
+  scale: 32.0
+
+# Training hyperparameters
+iters: 1000
+batch_size: 1
+learning_rate: 1e-5
+
+# Memory optimization for 16GB M1
+num_layers: 16
+max_seq_length: 2048
+grad_checkpoint: true
+
+# Logging and saving
+steps_per_report: 10
+steps_per_eval: 200
+save_every: 200
+val_batches: 10
+
+# Output
+adapter_path: adapters/dadai-lora
+seed: 42

@@ -47,7 +47,7 @@ A complete rewrite, taking advantage of Apple's **MLX framework** which now make
 
 - **Model:** [Mistral 7B Instruct v0.3 (4-bit MLX)](https://huggingface.co/mlx-community/Mistral-7B-Instruct-v0.3-4bit) — 3.8 GB on disk
 - **Training:** LoRA fine-tuning via [mlx-lm](https://github.com/ml-explore/mlx-lm) on Apple Silicon
-- **Data:** Hybrid — real Reddit questions + curated & synthetic dad responses
+- **Data:** Hybrid — 2,096 real Reddit Q&A pairs + 68 synthetic pairs for under-covered topics
 - **UI:** Gradio chat interface
 - **Hosting:** Hugging Face Spaces (free)
 - **Language:** Python 3.11
@@ -57,16 +57,30 @@ A complete rewrite, taking advantage of Apple's **MLX framework** which now make
 ```
 dadAI/
 ├── data/                       # Datasets (raw, cleaned, formatted)
-│   ├── reddit_dataset.jsonl
-│   ├── cleaned_dataset.jsonl
-│   └── formatted_dataset.jsonl
-├── lora_finetune/             # v1 fine-tuning scripts (archived)
-├── scripts/                   # Data collection and processing
-├── models/                    # Downloaded models (not committed)
-├── tests/                     # Prompt examples, screenshots
-├── .venv/                     # Python virtual environment (not committed)
+│   ├── reddit_dataset.jsonl    #   Raw Reddit posts (2,100)
+│   ├── formatted_dataset.jsonl #   Mistral [INST] prompt/completion pairs
+│   ├── cleaned_dataset.jsonl   #   Filtered, deduplicated (2,096)
+│   ├── synthetic_gap_topics.jsonl # Synthetic pairs for under-covered topics (68)
+│   ├── training_dataset.jsonl  #   Final merged dataset (2,164)
+│   └── mlx_training/           #   Train/valid/test splits for mlx-lm
+├── scripts/                    # Data & training pipeline
+│   ├── collect_reddit_data.py  #   Reddit data collection
+│   ├── format_reddit_data.py   #   Convert to Mistral chat format
+│   ├── clean_dataset.py        #   Quality filtering
+│   ├── check_dataset_format.py #   Validation
+│   ├── generate_synthetic_data.py # Synthetic data for gap topics
+│   ├── prepare_training_data.py   # Convert to mlx-lm chat format + split
+│   ├── inference.py            #   Interactive chat with fine-tuned model
+│   └── show_random_sample.py   #   Quick dataset inspection
+├── adapters/                   # LoRA adapters (generated, not committed)
+├── models/                     # Downloaded models (not committed)
+├── lora_finetune/              # v1 fine-tuning scripts (archived)
+├── training_config.yaml        # MLX LoRA training configuration
+├── train.sh                    # One-command training script
+├── Makefile                    # Pipeline commands
+├── .venv/                      # Python virtual environment (not committed)
 ├── requirements.txt
-├── .env                       # Reddit API credentials (not committed)
+├── .env                        # Reddit API credentials (not committed)
 ├── .gitignore
 └── README.md
 ```
@@ -113,20 +127,44 @@ print(response)
 "
 ```
 
+## 🏋️ Training
+
+```bash
+# Activate environment
+source .venv/bin/activate
+
+# One-command training (prepare data + fine-tune + evaluate)
+./train.sh
+
+# Or step by step:
+make prepare    # Convert data to mlx-lm format + split
+make train      # Run LoRA fine-tuning (~30-90 min on M1)
+make test       # Evaluate on held-out test set
+make chat       # Interactive chat with fine-tuned model
+```
+
+**Training details:**
+- **Method:** QLoRA (model is 4-bit quantized, LoRA rank 16)
+- **Key fix from v1:** `--mask-prompt` ensures the model trains only on completions, not prompts
+- **Memory:** Peak ~6 GB (comfortable on 16 GB Mac)
+- **Dataset:** 2,164 examples (2,096 real Reddit + 68 synthetic gap topics)
+- **Config:** See `training_config.yaml` for all hyperparameters
+
 ## 💬 Status
 
 | Phase | Description | Status |
 |-------|-------------|--------|
 | 1. Environment | Python 3.11, MLX, virtual env | ✅ Done |
 | 2. Base model | Mistral 7B v0.3 downloaded + verified | ✅ Done |
-| 3. Data pipeline | Fix collection, formatting, cleaning | 🔜 Next |
-| 4a. Dataset | Re-run Reddit collection, curate best pairs (~300-500) | ⬜ Planned |
-| 4b. Dataset | Synthetic enhanced responses for Reddit questions (~500-800) | ⬜ Planned |
-| 4c. Dataset | Synthetic pairs for under-covered topics (~200-300) | ⬜ Planned |
-| 5. Training | LoRA fine-tuning on Mac via MLX | ⬜ Planned |
-| 6. Evaluation | Test and iterate on responses | ⬜ Planned |
-| 7. UI | Gradio chat interface | ⬜ Planned |
-| 8. Deployment | Hugging Face Spaces | ⬜ Planned |
+| 3. Data pipeline | Fix collection, formatting, cleaning | ✅ Done |
+| 4a. Dataset | Reddit collection — 2,100 posts, 7 subreddits | ✅ Done |
+| 4b. Dataset | Synthetic enhanced responses | ⏭️ Skipped (preserving human voice) |
+| 4c. Dataset | Synthetic pairs for gap topics (68 examples) | ✅ Done |
+| 5. Training | LoRA fine-tuning setup (config, scripts, dry-run) | ✅ Done |
+| 6. Training run | Full LoRA training on Mac M1 | 🔜 Next |
+| 7. Evaluation | Test and iterate on responses | ⬜ Planned |
+| 8. UI | Gradio chat interface | ⬜ Planned |
+| 9. Deployment | Hugging Face Spaces | ⬜ Planned |
 
 ## 👤 Author
 

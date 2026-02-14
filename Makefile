@@ -5,7 +5,7 @@
 #   - Activate venv: source .venv/bin/activate
 #   - Set up .env with Reddit API credentials
 
-.PHONY: all collect format clean check sample help
+.PHONY: all collect format clean check sample prepare train test chat help
 
 # Full pipeline: collect → format → clean → validate
 all: collect format clean check
@@ -30,6 +30,22 @@ check:
 sample:
 	python scripts/show_random_sample.py
 
+# Step 5: Prepare data for MLX training (split into train/valid/test)
+prepare:
+	python scripts/prepare_training_data.py
+
+# Step 6: Run LoRA fine-tuning
+train: prepare
+	mlx_lm.lora --config training_config.yaml
+
+# Step 7: Evaluate on test set
+test:
+	mlx_lm.lora --model models/mistral-7b-instruct-v0.3-4bit --adapter-path adapters/dadai-lora --data data/mlx_training --test --test-batches 25
+
+# Interactive chat with fine-tuned model
+chat:
+	python scripts/inference.py
+
 # Show help
 help:
 	@echo "DadAI Data Pipeline"
@@ -40,3 +56,9 @@ help:
 	@echo "  make clean     - Step 3: Clean and filter"
 	@echo "  make check     - Step 4: Validate dataset"
 	@echo "  make sample    - Show random samples"
+	@echo ""
+	@echo "Training:"
+	@echo "  make prepare   - Step 5: Prepare data for MLX training"
+	@echo "  make train     - Step 6: Run LoRA fine-tuning (includes prepare)"
+	@echo "  make test      - Step 7: Evaluate model on test set"
+	@echo "  make chat      - Interactive chat with fine-tuned model"
