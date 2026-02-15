@@ -31,7 +31,7 @@ client = InferenceClient(token=os.environ.get("HF_TOKEN"))
 # Chat function — Gradio 5.x ChatInterface with type="messages"
 # ---------------------------------------------------------------------------
 
-def respond(message: str, history: list[dict]) -> str:
+def respond(message: str, history: list) -> str:
     """Generate a response (non-streaming for maximum compatibility)."""
     if not message.strip():
         return "Please type a question!"
@@ -57,7 +57,6 @@ def respond(message: str, history: list[dict]) -> str:
 
 demo = gr.ChatInterface(
     fn=respond,
-    type="messages",
     title="DadAI — Support for New Dads",
     description=(
         "**DadAI** is a supportive AI fine-tuned on real parenting conversations "
