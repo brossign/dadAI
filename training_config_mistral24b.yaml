@@ -1,0 +1,47 @@
+# DadAI v3.1 — Mistral Small 24B QLoRA Training Configuration
+# DEBUG ONLY — testing if 24B fits on M1 16GB
+#
+# Mistral Small 24B has 56 transformer layers
+# At 4-bit, model is ~14 GB. Training overhead adds ~2-4 GB.
+# Total expected: ~16-18 GB — likely exceeds M1 16GB
+#
+# This is a 5-iteration test to measure peak memory and speed.
+
+# Model
+model: models/mistral-small-24b-instruct-4bit
+
+# Training mode
+train: true
+fine_tune_type: lora
+
+# Data — same curated dataset as v2
+data: data/mlx_training
+mask_prompt: true
+
+# LoRA parameters
+lora_parameters:
+  rank: 16
+  dropout: 0.05
+  scale: 32.0
+
+# Training hyperparameters — minimal debug run
+iters: 5
+batch_size: 1
+learning_rate: 5e-6
+
+# Memory optimization — aggressive for 16GB M1
+# num_layers: 14 = fine-tune only 25% of layers (56 total)
+# This is the minimum useful amount to reduce memory pressure
+num_layers: 14
+max_seq_length: 2048
+grad_checkpoint: true
+
+# Logging
+steps_per_report: 1
+steps_per_eval: 5
+save_every: 999
+val_batches: 3
+
+# Output
+adapter_path: adapters/dadai-mistral24b-lora
+seed: 42

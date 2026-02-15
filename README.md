@@ -3,7 +3,8 @@
 **DadAI** is an open-source AI built to support new fathers during pregnancy and early parenthood.
 Fine-tuned on real parenting conversations from Reddit and augmented with curated parenting psychology via RAG.
 
-**Try it now:** [huggingface.co/spaces/benlongi/DadAI](https://huggingface.co/spaces/benlongi/DadAI)
+**Try the demo:** [huggingface.co/spaces/benlongi/DadAI](https://huggingface.co/spaces/benlongi/DadAI)
+*(Note: the HF demo uses a standard Mistral model via API. The full fine-tuned Qwen 14B + RAG runs locally — clone this repo to try the real thing.)*
 
 ## Why DadAI?
 
@@ -14,6 +15,7 @@ DadAI covers:
 - Emotional support during pregnancy and early parenthood
 - Sleep deprivation, relationship strain, identity loss
 - Dad mental health, bonding struggles, work-life guilt
+- Couple conflict after baby, breaking generational patterns
 - Practical tips from real fathers who've been there
 
 ## Press & Articles
@@ -25,7 +27,7 @@ DadAI covers:
 
 ### v1 (April 2025) — Cloud-based, RunPod + GPTQ
 
-The original version was built as a learning project:
+The original version was built as a hands-on learning exercise with ChatGPT:
 - **Mistral 7B Instruct v0.1** (GPTQ quantized)
 - **QLoRA + PEFT** fine-tuning on **RunPod** (RTX 4090, ~$5 total)
 - **298 Reddit posts** from 4 subreddits
@@ -42,7 +44,7 @@ See the `v0.1-original` tag for the original codebase.
 
 ### v2 (February 2026) — Local-first, Mac + MLX
 
-A complete rewrite over a weekend, powered by Apple's **MLX framework**:
+A complete rewrite over a weekend with Claude via Cursor, powered by Apple's **MLX framework**:
 
 | | v1 (2025) | v2 (2026) |
 |--|-----------|-----------|
@@ -60,71 +62,80 @@ A complete rewrite over a weekend, powered by Apple's **MLX framework**:
 v2 taught DadAI *how to talk* like a supportive dad. v3 gives it *what to know*.
 
 **The insight:** Fine-tuning and RAG are complementary:
-- **Fine-tuning** = personality. The model studied 2,147 real dad conversations and internalized empathy, warmth, and tone.
+- **Fine-tuning** = personality. The model studied real dad conversations and internalized empathy, warmth, and tone.
 - **RAG** = knowledge. When a dad asks a question, the model searches a curated knowledge base of parenting psychology and weaves expert insights into its response.
 
 They stack: the warm dad voice from fine-tuning meets grounded wisdom from books. No retraining needed.
 
-**New in v3:**
-- EPUB/PDF book extraction and semantic chunking pipeline
-- ChromaDB vector database with `all-MiniLM-L6-v2` embeddings (295 passages)
-- Automatic retrieval of the 2 most relevant passages per question
-- Background knowledge injected into the model's prompt at generation time
-- Graceful fallback to v2 behavior if no knowledge base is present
+### v3.1 (February 2026) — Current: Qwen 14B + 4 Books + Reranker
 
-**Honest status:** The architecture works — the right passages surface for the right questions. The 7B model sometimes struggles to fully synthesize retrieved knowledge into its responses. This is an active area of improvement.
+The version that actually delivers. Three major upgrades:
 
-## Tech Stack (v3)
+| | v3 | v3.1 (current) |
+|--|-----|----------------|
+| **Model** | Mistral 7B (4-bit) | **Qwen2.5-14B-Instruct (4-bit)** |
+| **Training data** | 2,147 pairs | **2,260 pairs** (5% synthetic) |
+| **RAG knowledge** | 1 book (295 passages) | **4 books (1,637 passages)** |
+| **Retrieval** | Top-2 vector search | **Top-5 + cross-encoder reranker** |
+| **Conversation** | Stateless | **3-turn memory** |
+| **Training time** | ~80 min (M1) | **~2.5 hrs (M1)** |
 
-- **Model:** [Mistral 7B Instruct v0.3 (4-bit MLX)](https://huggingface.co/mlx-community/Mistral-7B-Instruct-v0.3-4bit) — 3.8 GB on disk
+**Why the upgrade matters:** The 7B model could do empathy *or* knowledge synthesis — not both in one response. The 14B model weaves book-informed advice into a natural dad voice. The cross-encoder reranker ensures the *right* passages get retrieved, not just the closest-sounding ones.
+
+## Tech Stack (v3.1)
+
+- **Model:** [Qwen2.5-14B-Instruct (4-bit MLX)](https://huggingface.co/mlx-community/Qwen2.5-14B-Instruct-4bit) — ~8.3 GB on disk
 - **Training:** QLoRA fine-tuning via [mlx-lm](https://github.com/ml-explore/mlx-lm) on Apple Silicon
-- **Data:** 2,096 real Reddit Q&A pairs + 68 synthetic pairs for under-covered topics
-- **RAG:** ChromaDB + sentence-transformers for semantic retrieval from curated knowledge base
+- **Data:** 2,147 real Reddit Q&A pairs + 113 synthetic pairs for under-covered topics
+- **RAG:** ChromaDB + sentence-transformers (`all-MiniLM-L6-v2`) for semantic retrieval
+- **Reranker:** Cross-encoder (`ms-marco-MiniLM-L6-v2`) for two-stage retrieval
 - **UI:** [Gradio](https://gradio.app) chat interface with streaming responses
 - **Local inference:** Fused model (LoRA baked into base weights) for fast generation
-- **Online demo:** [HF Spaces](https://huggingface.co/spaces/benlongi/DadAI) via Inference API
+- **Online demo:** [HF Spaces](https://huggingface.co/spaces/benlongi/DadAI) via Inference API (standard model)
 - **Language:** Python 3.11
 
 ## Project Structure
 
 ```
 dadAI/
-├── app.py                         # Gradio chat UI (local, uses fused model + RAG)
-├── hf-space/                      # Hugging Face Spaces deployment
-│   ├── app.py                     #   HF demo (Inference API, no local model)
+├── app.py                           # Gradio chat UI (local, fused model + RAG + reranker)
+├── hf-space/                        # Hugging Face Spaces deployment
+│   ├── app.py                       #   HF demo (Inference API, standard model)
 │   ├── requirements.txt
 │   └── README.md
-├── data/                          # Datasets
-│   ├── reddit_dataset.jsonl       #   Raw Reddit posts (2,100)
-│   ├── formatted_dataset.jsonl    #   Mistral [INST] prompt/completion pairs
-│   ├── cleaned_dataset.jsonl      #   Filtered, deduplicated (2,096)
-│   ├── synthetic_gap_topics.jsonl #   Synthetic pairs for gap topics (68)
-│   ├── training_dataset.jsonl     #   Final merged dataset (2,164)
-│   ├── mlx_training/              #   Train/valid/test splits for mlx-lm
-│   ├── rag_chunks.jsonl           #   Book chunks for RAG (gitignored)
-│   └── rag_db/                    #   ChromaDB vector database (gitignored)
-├── scripts/                       # Pipeline scripts
-│   ├── collect_reddit_data.py     #   Reddit data collection (PRAW)
-│   ├── format_reddit_data.py      #   Convert to Mistral chat format
-│   ├── clean_dataset.py           #   Quality filtering & dedup
-│   ├── check_dataset_format.py    #   Validation
-│   ├── generate_synthetic_data.py #   Synthetic data for gap topics
-│   ├── prepare_training_data.py   #   mlx-lm format + token filtering + split
-│   ├── chunk_book.py              #   Extract & chunk books for RAG (v3)
-│   ├── build_rag_db.py            #   Build ChromaDB vector database (v3)
-│   ├── inference.py               #   Interactive CLI chat
-│   ├── evaluate_model.py          #   A/B comparison: base vs fine-tuned
-│   ├── deploy_to_hf.py            #   One-command HF Spaces deployment
-│   └── show_random_sample.py      #   Quick dataset inspection
-├── books/                         # Source books for RAG (gitignored)
-├── training_config.yaml           # MLX LoRA training config
-├── train.sh                       # One-command training script
-├── Makefile                       # Pipeline commands
-├── models/                        # Downloaded models (gitignored)
-├── adapters/                      # LoRA adapters (gitignored)
-├── fused_model/                   # Base + LoRA merged (gitignored)
-├── .env                           # Reddit API credentials (gitignored)
-└── .venv/                         # Python virtual environment (gitignored)
+├── data/                            # Datasets
+│   ├── reddit_dataset.jsonl         #   Raw Reddit posts (~2,100)
+│   ├── formatted_dataset.jsonl      #   ChatML prompt/completion pairs
+│   ├── cleaned_dataset.jsonl        #   Filtered, deduplicated
+│   ├── synthetic_gap_topics.jsonl   #   Synthetic pairs for gap topics
+│   ├── synthetic_v31_pairs.jsonl    #   Additional v3.1 synthetic pairs (5% ratio)
+│   ├── training_dataset.jsonl       #   Final merged dataset (2,260)
+│   ├── mlx_training/                #   Train/valid/test splits for mlx-lm
+│   └── rag_db/                      #   ChromaDB vector database (gitignored)
+├── scripts/                         # Pipeline scripts
+│   ├── collect_reddit_data.py       #   Reddit data collection (PRAW)
+│   ├── format_reddit_data.py        #   Convert to chat format
+│   ├── clean_dataset.py             #   Quality filtering & dedup
+│   ├── check_dataset_format.py      #   Validation
+│   ├── generate_synthetic_data.py   #   Synthetic data for gap topics
+│   ├── generate_synthetic_v31.py    #   V3.1 synthetic pairs (5% ratio)
+│   ├── prepare_training_data.py     #   mlx-lm format + token filtering + split
+│   ├── chunk_book.py                #   Extract & chunk EPUBs for RAG
+│   ├── build_rag_db.py              #   Build ChromaDB vector database
+│   ├── compare_models.py            #   Side-by-side model comparison
+│   ├── inference.py                 #   Interactive CLI chat
+│   ├── evaluate_model.py            #   A/B comparison: base vs fine-tuned
+│   └── deploy_to_hf.py             #   One-command HF Spaces deployment
+├── books/                           # Source books for RAG (gitignored, copyrighted)
+├── training_config.yaml             # MLX LoRA training config (Mistral 7B)
+├── training_config_qwen14b.yaml     # MLX LoRA training config (Qwen 14B)
+├── train.sh                         # One-command training script
+├── Makefile                         # Pipeline commands
+├── models/                          # Downloaded/fused models (gitignored)
+├── adapters/                        # LoRA adapters (gitignored)
+├── requirements.txt                 # Python dependencies
+├── .env                             # Reddit API credentials (gitignored)
+└── .venv/                           # Python virtual environment (gitignored)
 ```
 
 ## Setup
@@ -149,52 +160,82 @@ python3.11 -m venv .venv
 source .venv/bin/activate
 
 # Install dependencies
-pip install mlx-lm huggingface_hub gradio praw python-dotenv tqdm transformers
-pip install chromadb sentence-transformers ebooklib beautifulsoup4  # For RAG (v3)
+pip install -r requirements.txt
+```
 
-# Download the base model (~3.8 GB)
+### Download the base model
+
+For **Qwen 14B** (recommended, v3.1):
+```bash
+python -c "
+from huggingface_hub import snapshot_download
+snapshot_download('mlx-community/Qwen2.5-14B-Instruct-4bit', local_dir='models/qwen2.5-14b-instruct-4bit')
+"
+```
+
+For **Mistral 7B** (lighter, v2):
+```bash
 python -c "
 from huggingface_hub import snapshot_download
 snapshot_download('mlx-community/Mistral-7B-Instruct-v0.3-4bit', local_dir='models/mistral-7b-instruct-v0.3-4bit')
 "
 ```
 
-### RAG Setup (v3)
+### RAG Setup
 
-To add book knowledge:
+To add book knowledge, place EPUB files in `books/` and run:
 
 ```bash
-# Place your book (EPUB or PDF) in the books/ directory
-# Then chunk and index it:
-python scripts/chunk_book.py --input books/your_book.epub
+# Chunk each book into passages
+python scripts/chunk_book.py --input books/your_book.epub --output data/rag_chunks_yourbook.jsonl
+
+# Build/update the ChromaDB vector database
 python scripts/build_rag_db.py
 ```
 
-The app automatically detects the RAG database at startup and uses it if available.
+The app automatically detects the RAG database at startup and uses it if available. Without it, DadAI still works — it just won't have book knowledge.
 
 ## Training
+
+### Qwen 14B (v3.1, recommended)
 
 ```bash
 source .venv/bin/activate
 
-# One-command training (prepare data + fine-tune + evaluate)
-./train.sh
+# Prepare data
+python scripts/prepare_training_data.py
 
-# Or step by step:
-make prepare    # Convert data to mlx-lm format + split
-make train      # Run LoRA fine-tuning (~60-80 min on M1)
-make test       # Evaluate on held-out test set
-make chat       # Interactive chat with fine-tuned model
+# Train (~2.5 hours on M1 16GB)
+mlx_lm.lora --config training_config_qwen14b.yaml
+
+# Fuse adapter into base model
+mlx_lm.fuse \
+  --model models/qwen2.5-14b-instruct-4bit \
+  --adapter-path adapters/dadai-qwen14b-lora \
+  --save-path models/dadai-qwen14b-fused
 ```
 
-**Training details:**
-- **Method:** QLoRA (model is 4-bit quantized) + LoRA rank 16
+### Mistral 7B (v2, lighter)
+
+```bash
+# Train (~80 min on M1 16GB)
+mlx_lm.lora --config training_config.yaml
+
+# Fuse adapter
+mlx_lm.fuse \
+  --model models/mistral-7b-instruct-v0.3-4bit \
+  --adapter-path adapters/dadai-lora \
+  --save-path models/dadai-v2-fused
+```
+
+### Training details
+- **Method:** QLoRA (4-bit quantized base) + LoRA rank 16
 - **Key fix from v1:** `mask_prompt: true` ensures the model only trains on completions
-- **Memory:** Peak ~7 GB (comfortable on 16 GB Mac, other apps keep running)
-- **Dataset:** 2,147 examples after token-length filtering (from 2,164)
-- **Best checkpoint:** Iteration 400 (out of 1,000) — selected via A/B evaluation
-- **NaN fix:** Sequences > 2048 tokens pre-filtered to prevent gradient explosion in 4-bit QLoRA
-- **Config:** See `training_config.yaml` for all hyperparameters
+- **Memory:** Peak ~10-12 GB for 14B, ~7 GB for 7B
+- **Dataset:** 2,260 examples (2,147 Reddit + 113 synthetic)
+- **Best checkpoint:** Selected via A/B evaluation (iteration 400 for 7B, full run for 14B)
+- **NaN prevention:** Sequences > 2,048 tokens pre-filtered to prevent gradient explosion in 4-bit QLoRA
+- **Config:** See `training_config_qwen14b.yaml` for all hyperparameters
 
 ## Chat UI
 
@@ -205,22 +246,42 @@ python app.py
 # Open http://localhost:7860
 ```
 
-Uses the fused model with streaming responses. If a RAG knowledge base is present, it automatically retrieves relevant passages for each question.
+Uses the fused model with streaming responses. RAG and the cross-encoder reranker load lazily on the first query to keep startup fast. Conversation history (up to 3 turns) is maintained automatically.
 
 ### Online demo
 Visit [huggingface.co/spaces/benlongi/DadAI](https://huggingface.co/spaces/benlongi/DadAI)
 
-Uses Mistral 7B via HF Inference API with the DadAI system prompt.
+Uses Mistral 7B via HF Inference API with the DadAI system prompt. This is **not** the fine-tuned model — it's a standard model with DadAI's prompt engineering. For the real experience, run locally.
+
+## Reproducing From Scratch
+
+If you want to rebuild DadAI from zero:
+
+1. **Set up environment** — Follow the Installation steps above
+2. **Collect Reddit data** — Create a `.env` with Reddit API credentials ([get them here](https://www.reddit.com/prefs/apps)), then `make collect`
+3. **Process data** — `make format && make clean && make check`
+4. **Add synthetic data** — `python scripts/generate_synthetic_data.py && python scripts/generate_synthetic_v31.py`
+5. **Prepare for training** — `python scripts/prepare_training_data.py`
+6. **Download base model** — See instructions above
+7. **Train** — `mlx_lm.lora --config training_config_qwen14b.yaml` (~2.5 hrs on M1)
+8. **Fuse** — `mlx_lm.fuse --model models/qwen2.5-14b-instruct-4bit --adapter-path adapters/dadai-qwen14b-lora --save-path models/dadai-qwen14b-fused`
+9. **Add books for RAG** — Place EPUBs in `books/`, chunk with `scripts/chunk_book.py`, index with `scripts/build_rag_db.py`
+10. **Run** — `python app.py`
+
+**Note:** Books are not included in the repo (copyrighted). You'll need to source your own parenting/fatherhood books for RAG. DadAI works without them — you just won't get book-informed responses.
 
 ## Key Lessons Learned
 
 1. **Always check your training labels.** v1's biggest bug: the tokenization was wrong, so the model never learned from completions. `mask_prompt` is essential.
 2. **Prompt template consistency matters.** Train and infer with the same format. Use `tokenizer.apply_chat_template()` everywhere.
-3. **MLX makes local fine-tuning real.** In 2025, I spent $5 on RunPod and hit format walls. In 2026, MLX on a MacBook Pro M1 just works.
-4. **Clean data beats more data.** 2,096 filtered Reddit pairs beat 298 noisy ones. Quality > quantity.
-5. **Early stopping wins.** Iteration 400 beat iteration 1000 in A/B testing.
+3. **MLX makes local fine-tuning real.** A MacBook M1 fine-tunes a 14B model in 2.5 hours. No cloud GPU needed.
+4. **Clean data beats more data.** 2,260 filtered pairs beat 298 noisy ones. Quality > quantity.
+5. **Early stopping wins.** Iteration 400 beat iteration 1000 for the 7B model. Test, don't assume.
 6. **Fine-tuning gives personality. RAG gives knowledge.** They're complementary. Fine-tune for *how* to respond, RAG for *what* to say.
-7. **Small models have real limits.** A 7B model can do empathetic tone OR knowledge synthesis well, but combining both in one response is where it struggles. Honest documentation of limitations teaches more than pretending it's perfect.
+7. **Two-stage retrieval matters.** A cross-encoder reranker on top of vector search catches what embedding similarity misses.
+8. **Test the bigger model before committing.** We tried 24B, measured disk-swapping, pivoted to 14B. Data-driven decisions save time.
+9. **Remove complexity before adding it.** V1's LocalAI + Docker + GPTQ pipeline was replaced by a single Gradio file.
+10. **Ship the honest version.** Document limitations alongside wins. Every failure teaches something.
 
 ## Author
 

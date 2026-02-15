@@ -1,7 +1,26 @@
-transformers
-peft
-datasets
-bitsandbytes
-scipy
-accelerate
-localai
+# DadAI v3.1 — Python dependencies
+# Install: pip install -r requirements.txt
+
+# MLX (Apple Silicon ML framework)
+mlx>=0.30
+mlx-lm>=0.30
+
+# Data collection
+praw>=7.8
+
+# Training & model
+transformers>=5.0
+
+# RAG pipeline
+chromadb>=1.0
+sentence-transformers>=5.0
+ebooklib>=0.20
+beautifulsoup4>=4.14
+
+# Web UI
+gradio>=6.5
+
+# Utilities
+python-dotenv>=1.0
+pillow>=12.0
+huggingface-hub>=0.30

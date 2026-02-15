@@ -1,0 +1,55 @@
+# DadAI v3.1 — Qwen2.5-14B QLoRA Training Configuration
+#
+# Two-phase approach:
+#   Phase 1 (LOCAL DEBUG): Run 10 iterations on M1 to verify pipeline
+#   Phase 2 (RUNPOD):      Full 1000 iterations on A40/A100
+#
+# Qwen2.5-14B-Instruct-4bit has 40 transformer layers (vs 32 in Mistral 7B)
+# At 4-bit, model is ~8.3 GB. Training overhead adds ~2-4 GB.
+#
+# Local M1 16GB estimate: ~10-12 GB peak (tight but should work)
+# RunPod A40 48GB: plenty of headroom
+#
+# The training data is the same as v2 — the reddit dad voice comes from
+# the dataset, not the base model. Qwen should absorb it well given
+# its stronger instruction-following capability.
+
+# Model
+model: models/qwen2.5-14b-instruct-4bit
+
+# Training mode
+train: true
+fine_tune_type: lora
+
+# Data — same curated dataset as v2
+data: data/mlx_training
+mask_prompt: true
+
+# LoRA parameters — same rank as v2
+lora_parameters:
+  rank: 16
+  dropout: 0.05
+  scale: 32.0
+
+# Training hyperparameters
+# FULL TRAINING RUN — 1000 iterations
+iters: 1000
+batch_size: 1
+learning_rate: 5e-6
+
+# Memory optimization — critical for 16GB M1
+# num_layers: 20 = fine-tune half the layers (40 total in Qwen 14B)
+# This reduces memory while still learning effectively
+num_layers: 20
+max_seq_length: 2048
+grad_checkpoint: true
+
+# Logging and saving
+steps_per_report: 10
+steps_per_eval: 200
+save_every: 200
+val_batches: 10
+
+# Output
+adapter_path: adapters/dadai-qwen14b-lora
+seed: 42

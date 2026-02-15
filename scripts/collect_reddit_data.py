@@ -196,14 +196,24 @@ def main():
     print(f"Connected to Reddit as: {reddit.user.me() or 'read-only'}\n")
 
     # Subreddits to collect from
+    # v2 originals (7 subs)
+    # v3.1 expansion: +6 subs for broader coverage
     subreddits = [
+        # --- v2 originals ---
         "NewDads",
         "Daddit",
         "BabyBumps",
         "Parenting",
-        "predaddit",      # Dads-to-be (pregnancy stage)
-        "beyondthebump",  # Post-birth parenting
-        "newparents",     # New parent struggles
+        "predaddit",          # Dads-to-be (pregnancy stage)
+        "beyondthebump",      # Post-birth parenting
+        "newparents",         # New parent struggles
+        # --- v3.1 additions ---
+        "breakingdad",        # Raw, unfiltered dad content
+        "SAHP",               # Stay-at-home parents — isolation, identity
+        "SingleDads",         # Single fatherhood challenges
+        "AskParents",         # Q&A format — ideal for instruction pairs
+        "DadForAMinute",      # Wholesome support — perfect DadAI tone
+        "AttachmentParenting", # Emotional, bonded parenting wisdom
     ]
 
     all_data = []

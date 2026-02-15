@@ -136,8 +136,20 @@ docs/
 books/
 
 # RAG chunks derived from books (copyrighted content, local only)
-data/rag_chunks.jsonl
+data/rag_chunks*.jsonl
 data/rag_db/
+
+# Backup datasets (local only)
+data/*_backup.jsonl
+
+# Local conversation history (private)
+data/conversations.json
+
+# Assets (logos, favicons — generated locally)
+assets/
+
+# macOS metadata
+.DS_Store
 
 # Ignore heavy downloaded model files, but keep readme/gitignore
 localai/models/*
