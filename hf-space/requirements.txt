@@ -1,0 +1,6 @@
+torch
+transformers
+accelerate
+bitsandbytes
+gradio
+spaces
