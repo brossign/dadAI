@@ -7,26 +7,29 @@ parenting conversations. Built with Mistral 7B + LoRA on Apple Silicon.
 Run locally:
     python app.py
 
-The app loads the MLX model with LoRA adapters and serves a chat UI.
+The app loads the fused MLX model and serves a streaming chat UI.
 """
 
 import gradio as gr
-from mlx_lm import load, generate
-from mlx_lm.generate import make_sampler
+from mlx_lm import load
+from mlx_lm.generate import stream_generate, make_sampler
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 
-MODEL_PATH = "models/mistral-7b-instruct-v0.3-4bit"
-ADAPTER_PATH = "adapters/dadai-lora"
+# Fused model (LoRA baked in) — faster inference, no adapter overhead
+MODEL_PATH = "models/dadai-v2-fused"
 
 SYSTEM_PROMPT = (
     "You are DadAI, a supportive and experienced father who gives advice "
     "to new dads. You respond with empathy, warmth, and practical wisdom — "
     "like a friend who's been through it all. You share personal anecdotes, "
     "normalize struggles, and never judge. You're not a therapist or doctor — "
-    "just a dad who gets it."
+    "just a dad who gets it.\n\n"
+    "Give thoughtful, detailed responses. Share your own experiences as a dad, "
+    "offer practical tips when relevant, and always make the other dad feel "
+    "heard and supported. Aim for a few paragraphs — don't rush."
 )
 
 MAX_TOKENS = 512
@@ -48,7 +51,7 @@ EXAMPLE_QUESTIONS = [
 # ---------------------------------------------------------------------------
 
 print("Loading DadAI model...")
-model, tokenizer = load(MODEL_PATH, adapter_path=ADAPTER_PATH)
+model, tokenizer = load(MODEL_PATH)
 sampler = make_sampler(temp=TEMPERATURE, min_p=0.05)
 print("Model loaded!")
 
@@ -70,21 +73,22 @@ def build_prompt(user_message):
 
 
 def respond(message, history):
-    """Generate a response to the user's message."""
+    """Stream a response token by token for real-time output."""
     if not message.strip():
         return ""
 
     prompt = build_prompt(message)
 
-    response = generate(
+    partial = ""
+    for response in stream_generate(
         model,
         tokenizer,
         prompt=prompt,
         max_tokens=MAX_TOKENS,
         sampler=sampler,
-    )
-
-    return response
+    ):
+        partial += response.text
+        yield partial
 
 
 # ---------------------------------------------------------------------------
