@@ -1,14 +1,19 @@
 """
-DadAI v2 — Gradio Chat Interface
+DadAI v3 — Gradio Chat Interface with RAG
 
 A supportive AI assistant for new dads, fine-tuned on real Reddit
-parenting conversations. Built with Mistral 7B + LoRA on Apple Silicon.
+parenting conversations and augmented with curated parenting psychology
+references via RAG (Retrieval-Augmented Generation).
 
 Run locally:
     python app.py
 
-The app loads the fused MLX model and serves a streaming chat UI.
+The app loads the fused MLX model, connects to the ChromaDB knowledge
+base, and serves a streaming chat UI.
 """
+
+import os
+from pathlib import Path
 
 import gradio as gr
 from mlx_lm import load
@@ -18,8 +23,10 @@ from mlx_lm.generate import stream_generate, make_sampler
 # Configuration
 # ---------------------------------------------------------------------------
 
-# Fused model (LoRA baked in) — faster inference, no adapter overhead
 MODEL_PATH = "models/dadai-v2-fused"
+RAG_DB_PATH = "data/rag_db"
+RAG_COLLECTION = "dadai_books"
+RAG_NUM_RESULTS = 2  # Number of book passages to retrieve per query
 
 SYSTEM_PROMPT = (
     "You are DadAI, a supportive and experienced father who gives advice "
@@ -30,6 +37,12 @@ SYSTEM_PROMPT = (
     "Give thoughtful, detailed responses. Share your own experiences as a dad, "
     "offer practical tips when relevant, and always make the other dad feel "
     "heard and supported. Aim for a few paragraphs — don't rush."
+)
+
+RAG_CONTEXT_INTRO = (
+    "\n\nBackground knowledge (use to inform your advice — synthesize into "
+    "your own words, do NOT quote or list these, just let them shape what "
+    "you say):\n\n"
 )
 
 MAX_TOKENS = 512
@@ -55,21 +68,79 @@ model, tokenizer = load(MODEL_PATH)
 sampler = make_sampler(temp=TEMPERATURE, min_p=0.05)
 print("Model loaded!")
 
+# ---------------------------------------------------------------------------
+# RAG: Load knowledge base
+# ---------------------------------------------------------------------------
+
+rag_collection = None
+
+if Path(RAG_DB_PATH).exists():
+    try:
+        import chromadb
+        from chromadb.utils import embedding_functions
+
+        print("Loading RAG knowledge base...")
+        ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+            model_name="all-MiniLM-L6-v2",
+        )
+        client = chromadb.PersistentClient(path=RAG_DB_PATH)
+        rag_collection = client.get_collection(
+            name=RAG_COLLECTION,
+            embedding_function=ef,
+        )
+        print(f"RAG loaded! {rag_collection.count()} passages in knowledge base.")
+    except Exception as e:
+        print(f"Warning: Could not load RAG database: {e}")
+        print("Running without book knowledge (v2 mode).")
+else:
+    print(f"No RAG database found at {RAG_DB_PATH}.")
+    print("Running without book knowledge. Run scripts/build_rag_db.py to enable RAG.")
+
+
+def retrieve_context(query: str, n_results: int = RAG_NUM_RESULTS) -> str:
+    """Search the knowledge base for relevant passages."""
+    if rag_collection is None:
+        return ""
+
+    try:
+        results = rag_collection.query(
+            query_texts=[query],
+            n_results=n_results,
+        )
+
+        if not results["documents"] or not results["documents"][0]:
+            return ""
+
+        passages = []
+        for doc in results["documents"][0]:
+            # Keep passages short to not bloat the prompt
+            trimmed = doc[:300] if len(doc) > 300 else doc
+            passages.append(f"- {trimmed}")
+
+        return RAG_CONTEXT_INTRO + "\n".join(passages)
+
+    except Exception:
+        return ""
+
 
 # ---------------------------------------------------------------------------
 # Chat logic
 # ---------------------------------------------------------------------------
 
-def build_prompt(user_message):
-    """Build Mistral-formatted prompt with system context."""
-    combined = f"{SYSTEM_PROMPT}\n\n{user_message}"
+def build_prompt(user_message, rag_context=""):
+    """Build Mistral-formatted prompt with system context + RAG."""
+    system = SYSTEM_PROMPT
+    if rag_context:
+        system += rag_context
+
+    combined = f"{system}\n\n{user_message}"
     messages = [{"role": "user", "content": combined}]
 
     if hasattr(tokenizer, "apply_chat_template"):
         return tokenizer.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )
-    return f"[INST] {SYSTEM_PROMPT}\n\n{user_message} [/INST]"
+    return f"[INST] {system}\n\n{user_message} [/INST]"
 
 
 def respond(message, history):
@@ -77,7 +148,10 @@ def respond(message, history):
     if not message.strip():
         return ""
 
-    prompt = build_prompt(message)
+    # RAG: retrieve relevant book passages
+    rag_context = retrieve_context(message)
+
+    prompt = build_prompt(message, rag_context)
 
     partial = ""
     for response in stream_generate(
@@ -95,13 +169,16 @@ def respond(message, history):
 # Gradio UI
 # ---------------------------------------------------------------------------
 
-DESCRIPTION = """
+rag_status = "with book knowledge (RAG)" if rag_collection else "without book knowledge"
+
+DESCRIPTION = f"""
 # DadAI — Talk to me like a fellow dad
 
-**DadAI** is a supportive AI fine-tuned on real parenting conversations from Reddit.
+**DadAI** is a supportive AI fine-tuned on real parenting conversations from Reddit,
+augmented with curated parenting psychology references.
 It responds with empathy and practical wisdom — like a friend who's been through it all.
 
-*Built with Mistral 7B + LoRA, trained locally on a MacBook Pro M1.*
+*Built with Mistral 7B + LoRA + RAG, running locally on Apple Silicon. Currently running {rag_status}.*
 """
 
 FOOTER = """
@@ -109,8 +186,7 @@ FOOTER = """
 
 **About DadAI** — Created by [Benoît Rossignol](https://www.linkedin.com/in/benoit-rossignol/)
 | [GitHub](https://github.com/brossign/dadAI)
-| Model: Mistral 7B v0.3 (4-bit) + LoRA
-| Data: 2,147 curated examples from Reddit + synthetic
+| Model: Mistral 7B v0.3 (4-bit) + LoRA + RAG
 
 *DadAI is not a therapist or medical professional. If you're struggling,
 please reach out to a mental health professional.*
@@ -135,7 +211,6 @@ demo = gr.ChatInterface(
     fill_height=True,
 )
 
-# Add footer below the chat
 with demo:
     gr.Markdown(FOOTER)
 
