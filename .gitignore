@@ -135,6 +135,10 @@ docs/
 # Book PDFs (copyrighted, local only)
 books/
 
+# RAG chunks derived from books (copyrighted content, local only)
+data/rag_chunks.jsonl
+data/rag_db/
+
 # Ignore heavy downloaded model files, but keep readme/gitignore
 localai/models/*
 !localai/models/.gitignore
