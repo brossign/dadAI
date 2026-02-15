@@ -91,7 +91,7 @@ TEST_QUESTIONS = [
 
 MODELS = [
     ("Mistral 7B (v2)", "models/dadai-v2-fused"),
-    ("Qwen 14B (v3.1)", "models/dadai-qwen14b-fused"),
+    ("Qwen 14B (v4)", "models/dadai-qwen14b-fused"),
 ]
 
 sampler = make_sampler(temp=0.7, min_p=0.05)

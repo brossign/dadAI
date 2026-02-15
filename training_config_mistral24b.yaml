@@ -1,4 +1,4 @@
-# DadAI v3.1 — Mistral Small 24B QLoRA Training Configuration
+# DadAI v4 experiment — Mistral Small 24B QLoRA Training Configuration
 # DEBUG ONLY — testing if 24B fits on M1 16GB
 #
 # Mistral Small 24B has 56 transformer layers

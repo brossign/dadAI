@@ -1,5 +1,5 @@
 """
-DadAI v3.1 — Gradio Chat Interface with RAG + Reranker
+DadAI v4 — Gradio Chat Interface with RAG + Reranker
 
 A supportive AI assistant for new dads, fine-tuned on real Reddit
 parenting conversations and augmented with curated parenting psychology

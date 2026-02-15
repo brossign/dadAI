@@ -1,4 +1,4 @@
-"""Quick tone comparison: Reddit vs v2 synthetic vs v3.1 synthetic."""
+"""Quick tone comparison: Reddit vs v2 synthetic vs v4 synthetic."""
 
 import json
 import random

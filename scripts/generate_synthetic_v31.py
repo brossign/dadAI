@@ -1,5 +1,5 @@
 """
-DadAI v3.1 — Additional synthetic training pairs
+DadAI v4 — Additional synthetic training pairs
 
 Expands the synthetic dataset from 68 to ~300 pairs (targeting 5% of
 the ~6,000 total dataset). Organized by topic category to fill gaps

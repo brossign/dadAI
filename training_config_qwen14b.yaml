@@ -1,4 +1,4 @@
-# DadAI v3.1 — Qwen2.5-14B QLoRA Training Configuration
+# DadAI v4 — Qwen2.5-14B QLoRA Training Configuration
 #
 # Two-phase approach:
 #   Phase 1 (LOCAL DEBUG): Run 10 iterations on M1 to verify pipeline

@@ -67,11 +67,11 @@ v2 taught DadAI *how to talk* like a supportive dad. v3 gives it *what to know*.
 
 They stack: the warm dad voice from fine-tuning meets grounded wisdom from books. No retraining needed.
 
-### v3.1 (February 2026) — Current: Qwen 14B + 4 Books + Reranker
+### v4 (February 2026) — Current: Qwen 14B + 4 Books + Reranker
 
 The version that actually delivers. Three major upgrades:
 
-| | v3 | v3.1 (current) |
+| | v3 | v4 (current) |
 |--|-----|----------------|
 | **Model** | Mistral 7B (4-bit) | **Qwen2.5-14B-Instruct (4-bit)** |
 | **Training data** | 2,147 pairs | **2,260 pairs** (5% synthetic) |
@@ -82,7 +82,7 @@ The version that actually delivers. Three major upgrades:
 
 **Why the upgrade matters:** The 7B model could do empathy *or* knowledge synthesis — not both in one response. The 14B model weaves book-informed advice into a natural dad voice. The cross-encoder reranker ensures the *right* passages get retrieved, not just the closest-sounding ones.
 
-## Tech Stack (v3.1)
+## Tech Stack (v4)
 
 - **Model:** [Qwen2.5-14B-Instruct (4-bit MLX)](https://huggingface.co/mlx-community/Qwen2.5-14B-Instruct-4bit) — ~8.3 GB on disk
 - **Training:** QLoRA fine-tuning via [mlx-lm](https://github.com/ml-explore/mlx-lm) on Apple Silicon
@@ -108,7 +108,7 @@ dadAI/
 │   ├── formatted_dataset.jsonl      #   ChatML prompt/completion pairs
 │   ├── cleaned_dataset.jsonl        #   Filtered, deduplicated
 │   ├── synthetic_gap_topics.jsonl   #   Synthetic pairs for gap topics
-│   ├── synthetic_v31_pairs.jsonl    #   Additional v3.1 synthetic pairs (5% ratio)
+│   ├── synthetic_v31_pairs.jsonl    #   Additional v4 synthetic pairs (5% ratio)
 │   ├── training_dataset.jsonl       #   Final merged dataset (2,260)
 │   ├── mlx_training/                #   Train/valid/test splits for mlx-lm
 │   └── rag_db/                      #   ChromaDB vector database (gitignored)
@@ -118,7 +118,7 @@ dadAI/
 │   ├── clean_dataset.py             #   Quality filtering & dedup
 │   ├── check_dataset_format.py      #   Validation
 │   ├── generate_synthetic_data.py   #   Synthetic data for gap topics
-│   ├── generate_synthetic_v31.py    #   V3.1 synthetic pairs (5% ratio)
+│   ├── generate_synthetic_v31.py    #   V4 synthetic pairs (5% ratio)
 │   ├── prepare_training_data.py     #   mlx-lm format + token filtering + split
 │   ├── chunk_book.py                #   Extract & chunk EPUBs for RAG
 │   ├── build_rag_db.py              #   Build ChromaDB vector database
@@ -165,7 +165,7 @@ pip install -r requirements.txt
 
 ### Download the base model
 
-For **Qwen 14B** (recommended, v3.1):
+For **Qwen 14B** (recommended, v4):
 ```bash
 python -c "
 from huggingface_hub import snapshot_download
@@ -197,7 +197,7 @@ The app automatically detects the RAG database at startup and uses it if availab
 
 ## Training
 
-### Qwen 14B (v3.1, recommended)
+### Qwen 14B (v4, recommended)
 
 ```bash
 source .venv/bin/activate
