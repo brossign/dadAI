@@ -150,6 +150,20 @@ make chat       # Interactive chat with fine-tuned model
 - **Dataset:** 2,164 examples (2,096 real Reddit + 68 synthetic gap topics)
 - **Config:** See `training_config.yaml` for all hyperparameters
 
+## 💻 Chat UI
+
+```bash
+# Start the Gradio chat interface
+source .venv/bin/activate
+python app.py
+# Open http://localhost:7860
+```
+
+Features:
+- Clean chat interface with example questions
+- Runs locally on Apple Silicon
+- Model loads in ~5 seconds, responses in 2-10 seconds
+
 ## 💬 Status
 
 | Phase | Description | Status |
@@ -160,11 +174,11 @@ make chat       # Interactive chat with fine-tuned model
 | 4a. Dataset | Reddit collection — 2,100 posts, 7 subreddits | ✅ Done |
 | 4b. Dataset | Synthetic enhanced responses | ⏭️ Skipped (preserving human voice) |
 | 4c. Dataset | Synthetic pairs for gap topics (68 examples) | ✅ Done |
-| 5. Training | LoRA fine-tuning setup (config, scripts, dry-run) | ✅ Done |
-| 6. Training run | Full LoRA training on Mac M1 | 🔜 Next |
-| 7. Evaluation | Test and iterate on responses | ⬜ Planned |
-| 8. UI | Gradio chat interface | ⬜ Planned |
-| 9. Deployment | Hugging Face Spaces | ⬜ Planned |
+| 5. Training setup | LoRA config, scripts, dry-run | ✅ Done |
+| 6. Training run | QLoRA on M1 — 1000 iters, iter-400 selected | ✅ Done |
+| 7. Evaluation | A/B test base vs fine-tuned, 3-way comparison | ✅ Done |
+| 8. Chat UI | Gradio interface with examples | ✅ Done |
+| 9. Deployment | Hugging Face Spaces | 🔜 Next |
 
 ## 👤 Author
 
