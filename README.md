@@ -287,7 +287,7 @@ If you want to rebuild DadAI from zero:
 
 **Benoît Rossignol**
 - Based in France
-- Solution Architect @ Shopify
+- Solution Engineer Manager @ Shopify
 - [GitHub](https://github.com/brossign)
 - [LinkedIn](https://www.linkedin.com/in/benoit-rossignol/)
 
