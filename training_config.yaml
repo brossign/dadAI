@@ -7,11 +7,15 @@
 # - mask_prompt: true — only train on completions (fixes v1's critical bug)
 # - num_layers: 16 — fine-tune all LoRA-capable layers
 # - grad_checkpoint: true — trades compute for memory
-# - 1000 iterations ≈ half epoch over 1948 train examples
-# - Learning rate 1e-5 for stable QLoRA convergence
+# - 1000 iterations ≈ half epoch over ~1936 train examples
+# - Learning rate 5e-6 — conservative for 4-bit QLoRA stability
 #
-# Estimated time: ~30-90 minutes on M1 (depends on seq lengths)
-# Peak memory: ~6 GB (leaving plenty for other apps)
+# Training run 1 (NaN at iter 60): caused by 6000+ token sequences
+# overflowing 4-bit gradients. Fixed by pre-filtering sequences
+# >2048 tokens in prepare_training_data.py and lowering LR.
+#
+# Estimated time: ~60-80 minutes on M1
+# Peak memory: ~7 GB (leaving plenty for other apps)
 
 # Model
 model: models/mistral-7b-instruct-v0.3-4bit
@@ -21,6 +25,7 @@ train: true
 fine_tune_type: lora
 
 # Data — prepared by scripts/prepare_training_data.py
+# Sequences >2048 tokens are pre-filtered to prevent NaN
 data: data/mlx_training
 mask_prompt: true
 
@@ -33,7 +38,7 @@ lora_parameters:
 # Training hyperparameters
 iters: 1000
 batch_size: 1
-learning_rate: 1e-5
+learning_rate: 5e-6
 
 # Memory optimization for 16GB M1
 num_layers: 16

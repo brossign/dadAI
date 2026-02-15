@@ -11,14 +11,19 @@ mlx-lm expects:
 
 Each line in chat format:
 {"messages": [
-    {"role": "system", "content": "..."},
-    {"role": "user", "content": "..."},
-    {"role": "assistant", "content": "..."}
+    {"role": "user", "content": "..."},       # system prompt + question
+    {"role": "assistant", "content": "..."}   # dad response
 ]}
+
+Mistral requires strict user/assistant alternation (no system role),
+so we embed the system prompt into the user message.
 
 This format lets mlx-lm apply Mistral's native chat template
 automatically, and --mask-prompt trains only on the assistant's
 response (fixing the v1 bug where the model never saw completions).
+
+IMPORTANT: Sequences exceeding --max-tokens are filtered out to
+prevent NaN gradient explosions during 4-bit QLoRA training.
 """
 
 import json
@@ -72,12 +77,33 @@ def convert_to_chat_format(prompt, completion):
     }
 
 
+def count_tokens_approx(messages):
+    """
+    Approximate token count using character length.
+    Rough heuristic: ~4 chars per token for English text.
+    We use a conservative 3.5 to slightly over-estimate.
+    """
+    total_chars = sum(len(m["content"]) for m in messages)
+    # Add ~20 tokens for chat template overhead ([INST], [/INST], etc.)
+    return int(total_chars / 3.5) + 20
+
+
+def count_tokens_exact(messages, tokenizer):
+    """Exact token count using the model's tokenizer."""
+    text = tokenizer.apply_chat_template(messages, tokenize=False)
+    return len(tokenizer.encode(text))
+
+
 def main():
     parser = argparse.ArgumentParser(description="Prepare data for MLX LoRA training")
     parser.add_argument("--input", default="data/training_dataset.jsonl",
                         help="Input JSONL file (merged dataset)")
     parser.add_argument("--output-dir", default="data/mlx_training",
                         help="Output directory for train/valid/test splits")
+    parser.add_argument("--model", default="models/mistral-7b-instruct-v0.3-4bit",
+                        help="Path to model (for tokenizer)")
+    parser.add_argument("--max-tokens", type=int, default=2048,
+                        help="Max sequence length in tokens (filter longer)")
     parser.add_argument("--valid-ratio", type=float, default=0.05,
                         help="Fraction of data for validation (default: 0.05)")
     parser.add_argument("--test-ratio", type=float, default=0.05,
@@ -94,15 +120,33 @@ def main():
         print(f"Error: Input file not found: {input_path}")
         raise SystemExit(1)
 
-    # Load all examples
+    # Load tokenizer for exact length filtering
+    print(f"Loading tokenizer from {args.model}...")
+    from transformers import AutoTokenizer
+    tokenizer = AutoTokenizer.from_pretrained(args.model)
+
+    # Load and convert all examples
     examples = []
+    skipped = 0
+    skipped_lengths = []
     with open(input_path, "r", encoding="utf-8") as f:
         for line in f:
             data = json.loads(line)
             chat = convert_to_chat_format(data["prompt"], data["completion"])
+
+            # Filter by token length to prevent NaN during QLoRA training
+            n_tokens = count_tokens_exact(chat["messages"], tokenizer)
+            if n_tokens > args.max_tokens:
+                skipped += 1
+                skipped_lengths.append(n_tokens)
+                continue
+
             examples.append(chat)
 
     print(f"Loaded {len(examples)} examples from {input_path}")
+    if skipped:
+        print(f"Filtered out {skipped} examples exceeding {args.max_tokens} tokens")
+        print(f"  (lengths: {sorted(skipped_lengths)[:5]}{'...' if len(skipped_lengths) > 5 else ''})")
 
     # Shuffle and split
     random.seed(args.seed)
