@@ -1,6 +1,2 @@
-torch
-transformers
-accelerate
-bitsandbytes
 gradio
-spaces
+huggingface_hub

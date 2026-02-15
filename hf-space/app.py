@@ -4,14 +4,13 @@ DadAI v2 — Hugging Face Spaces Demo
 A supportive AI assistant for new dads, powered by Mistral 7B Instruct.
 Fine-tuned on real Reddit parenting conversations with LoRA on Apple Silicon.
 
-This demo uses the base model with an enhanced system prompt on ZeroGPU.
+This demo calls Mistral via the HF Inference API (no local model loading).
 The full fine-tuned model (MLX + LoRA) runs locally on Mac.
 """
 
-import spaces
+import os
 import gradio as gr
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from huggingface_hub import InferenceClient
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -44,66 +43,38 @@ EXAMPLE_QUESTIONS = [
 ]
 
 # ---------------------------------------------------------------------------
-# Model loading (runs once on startup)
+# Inference client (calls HF-hosted model — no local GPU/RAM needed)
 # ---------------------------------------------------------------------------
 
-print("Loading tokenizer...")
-tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
-
-print("Loading model in 4-bit...")
-bnb_config = BitsAndBytesConfig(
-    load_in_4bit=True,
-    bnb_4bit_quant_type="nf4",
-    bnb_4bit_compute_dtype=torch.float16,
-)
-model = AutoModelForCausalLM.from_pretrained(
-    MODEL_ID,
-    quantization_config=bnb_config,
-    device_map="auto",
-    torch_dtype=torch.float16,
-)
-print("Model loaded!")
+client = InferenceClient(token=os.environ.get("HF_TOKEN"))
 
 
 # ---------------------------------------------------------------------------
 # Chat logic
 # ---------------------------------------------------------------------------
 
-@spaces.GPU
 def respond(message, history):
-    """Generate a response using the Mistral model."""
+    """Stream a response from the HF Inference API."""
     if not message.strip():
         return ""
 
-    # Build Mistral chat format
+    # Build Mistral-compatible messages
     messages = [
         {"role": "user", "content": f"{SYSTEM_PROMPT}\n\n{message}"},
     ]
 
-    input_ids = tokenizer.apply_chat_template(
-        messages,
-        return_tensors="pt",
-        add_generation_prompt=True,
-    ).to(model.device)
-
-    with torch.no_grad():
-        output = model.generate(
-            input_ids,
-            max_new_tokens=MAX_NEW_TOKENS,
-            do_sample=True,
-            temperature=0.7,
-            top_p=0.9,
-            repetition_penalty=1.1,
-            pad_token_id=tokenizer.eos_token_id,
-        )
-
-    # Decode only the new tokens (skip the prompt)
-    response = tokenizer.decode(
-        output[0][input_ids.shape[1]:],
-        skip_special_tokens=True,
-    )
-
-    return response
+    partial = ""
+    for chunk in client.chat_completion(
+        model=MODEL_ID,
+        messages=messages,
+        max_tokens=MAX_NEW_TOKENS,
+        temperature=0.7,
+        top_p=0.9,
+        stream=True,
+    ):
+        token = chunk.choices[0].delta.content or ""
+        partial += token
+        yield partial
 
 
 # ---------------------------------------------------------------------------
@@ -126,7 +97,7 @@ FOOTER = """
 | [GitHub](https://github.com/brossign/dadAI)
 
 - **Local model:** Mistral 7B v0.3 (4-bit MLX) + LoRA fine-tuning on 2,147 real dad conversations
-- **This demo:** Mistral 7B v0.3 with enhanced system prompt on Hugging Face ZeroGPU
+- **This demo:** Mistral 7B v0.3 via HF Inference API with enhanced system prompt
 
 *DadAI is not a therapist or medical professional. If you're struggling,
 please reach out to a mental health professional.*
