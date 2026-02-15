@@ -132,6 +132,9 @@ fused_model/
 # Article drafts (local only)
 docs/
 
+# Book PDFs (copyrighted, local only)
+books/
+
 # Ignore heavy downloaded model files, but keep readme/gitignore
 localai/models/*
 !localai/models/.gitignore
