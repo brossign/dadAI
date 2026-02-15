@@ -56,9 +56,10 @@ client = InferenceClient(token=os.environ.get("HF_TOKEN"))
 def respond(message, history):
     """Stream a response from the HF Inference API."""
     if not message.strip():
-        return ""
+        yield ""
+        return
 
-    # Build Mistral-compatible messages
+    # Build Mistral-compatible messages (system embedded in first user msg)
     messages = [
         {"role": "user", "content": f"{SYSTEM_PROMPT}\n\n{message}"},
     ]
@@ -103,26 +104,53 @@ FOOTER = """
 please reach out to a mental health professional.*
 """
 
-demo = gr.ChatInterface(
-    fn=respond,
-    title="DadAI — Support for New Dads",
-    description=DESCRIPTION,
-    examples=EXAMPLE_QUESTIONS,
-    cache_examples=False,
-    chatbot=gr.Chatbot(
-        height=480,
-        placeholder="Ask me anything about being a new dad...",
-        label="DadAI",
-    ),
-    textbox=gr.Textbox(
+with gr.Blocks(title="DadAI — Support for New Dads", theme=gr.themes.Soft()) as demo:
+    gr.Markdown(DESCRIPTION)
+
+    chatbot = gr.Chatbot(height=480, label="DadAI", type="messages")
+    msg = gr.Textbox(
         placeholder="Type your question here...",
         label="Your message",
         scale=7,
-    ),
-    fill_height=True,
-)
+    )
 
-with demo:
+    gr.Examples(
+        examples=EXAMPLE_QUESTIONS,
+        inputs=msg,
+    )
+
+    def user_submit(message, history):
+        """Add user message to chat and stream assistant response."""
+        history = history + [{"role": "user", "content": message}]
+        return "", history
+
+    def bot_respond(history):
+        """Generate assistant response."""
+        user_message = history[-1]["content"]
+        history.append({"role": "assistant", "content": ""})
+
+        messages = [
+            {"role": "user", "content": f"{SYSTEM_PROMPT}\n\n{user_message}"},
+        ]
+
+        partial = ""
+        for chunk in client.chat_completion(
+            model=MODEL_ID,
+            messages=messages,
+            max_tokens=MAX_NEW_TOKENS,
+            temperature=0.7,
+            top_p=0.9,
+            stream=True,
+        ):
+            token = chunk.choices[0].delta.content or ""
+            partial += token
+            history[-1]["content"] = partial
+            yield history
+
+    msg.submit(user_submit, [msg, chatbot], [msg, chatbot]).then(
+        bot_respond, chatbot, chatbot
+    )
+
     gr.Markdown(FOOTER)
 
 
