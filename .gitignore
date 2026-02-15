@@ -129,6 +129,9 @@ adapters/
 # Fused model output (base + LoRA merged)
 fused_model/
 
+# Article drafts (local only)
+docs/
+
 # Ignore heavy downloaded model files, but keep readme/gitignore
 localai/models/*
 !localai/models/.gitignore
