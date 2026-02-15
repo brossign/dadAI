@@ -1,94 +1,112 @@
-# DadAI – An LLM-based assistant for new dads 🤖👶
+# DadAI — An AI Assistant for New Dads
 
-**DadAI** is an open-source project built to support new fathers during pregnancy and early parenthood.
-The idea is simple: provide emotionally intelligent, practical guidance powered by LLMs — fine-tuned on real parenting discussions.
+**DadAI** is an open-source AI built to support new fathers during pregnancy and early parenthood.
+It provides emotionally intelligent, practical guidance — fine-tuned on real parenting conversations from Reddit.
 
-## 🚀 Why DadAI?
+**Try it now:** [huggingface.co/spaces/benlongi/DadAI](https://huggingface.co/spaces/benlongi/DadAI)
 
-Most resources around parenting are either mother-centric or scattered across forums.
-As a first-time dad, I realized how hard it can be to find support that's both practical and emotionally relevant — and I wanted to make things easier for other future dads.
+## Why DadAI?
 
-DadAI aims to provide a clear, AI-driven interface that supports:
+Most parenting resources are either mother-centric or scattered across forums.
+As a first-time dad, I realized how hard it can be to find support that's both practical and emotionally relevant — so I built an AI that talks to you like a friend who's been through it all.
+
+DadAI covers:
 - Emotional support during pregnancy and early parenthood
-- Concrete actions and reminders
-- Guidance on sleep, communication, and partner well-being
+- Sleep deprivation, relationship strain, identity loss
+- Dad mental health, bonding struggles, work-life guilt
+- Practical tips from real fathers who've been there
 
-## 📰 Press & Articles
+## Press & Articles
 
 - [How a Solo Dev Built an AI for Dads — RunPod Blog (May 2025)](https://www.runpod.io/blog/solo-dev-ai-for-dads-runpod)
 - [How I Fine-Tuned a Custom AI Model (DadAI) — LinkedIn (Apr 2025)](https://www.linkedin.com/pulse/how-i-built-fine-tuned-my-own-dadai-what-taught-me-llms-rossignol-pq7he/)
 
-## 🔄 Project Evolution
+## Project Evolution
 
 ### v1 (April 2025) — Cloud-based, RunPod + GPTQ
 
-The original version was built as a learning project using:
+The original version was built as a learning project:
 - **Mistral 7B Instruct v0.1** (GPTQ quantized)
 - **QLoRA + PEFT** fine-tuning on **RunPod** (RTX 4090, ~$5 total)
-- **298 Reddit posts** from r/NewDads, r/Daddit, r/BabyBumps, r/Parenting
-- HuggingFace Transformers + bitsandbytes stack
+- **298 Reddit posts** from 4 subreddits
+- No UI — CLI only
 
-**What went wrong:** A code audit revealed critical bugs — the model never actually trained on the completions (tokenization bug), the prompt templates were mismatched between training and inference, and the deployment pipeline (GPTQ → GGUF → LocalAI) hit format incompatibility walls. See the `v0.1-original` tag for the original codebase.
+**What went wrong:** A thorough code audit (by Claude) uncovered 5 critical bugs:
+1. **Tokenization bug** — the model never trained on completions (labels were wrong)
+2. **Prompt template mismatch** — training used `[INST]` format but inference used a different template
+3. **No `mask_prompt`** — the model trained on the prompts too, diluting learning
+4. **Small, noisy dataset** — only 298 pairs, ~30% bot contamination, no quality filtering
+5. **Format incompatibility** — GPTQ to GGUF to LocalAI deployment never worked
 
-### v2 (February 2026) — Local-first, Mac + MLX 🆕
+See the `v0.1-original` tag for the original codebase.
 
-A complete rewrite, taking advantage of Apple's **MLX framework** which now makes local fine-tuning on Mac viable:
+### v2 (February 2026) — Local-first, Mac + MLX
+
+A complete rewrite over a weekend, powered by Apple's **MLX framework**:
 
 | | v1 (2025) | v2 (2026) |
 |--|-----------|-----------|
 | **Base model** | Mistral 7B v0.1 (GPTQ) | Mistral 7B Instruct v0.3 (MLX 4-bit) |
-| **Training** | RunPod RTX 4090 ($5) | Mac M1 locally (free) |
+| **Training** | RunPod RTX 4090 ($5) | MacBook Pro M1 (free) |
 | **Framework** | HuggingFace + PEFT + bitsandbytes | Apple MLX + mlx-lm |
-| **Dataset** | 298 Reddit pairs (buggy pipeline) | 1,000–2,000 curated pairs (fixed) |
-| **Deployment** | LocalAI (never worked) | Gradio on Hugging Face Spaces |
-| **UI** | None (CLI only) | Chat interface |
+| **Dataset** | 298 pairs (buggy pipeline, 30% bots) | 2,147 curated pairs (0% bots) |
+| **Data sources** | 4 subreddits | 7 subreddits + 68 synthetic gap topics |
+| **Key training fix** | None (trained on prompts) | `mask_prompt: true` (trains on completions only) |
+| **Deployment** | LocalAI (never worked) | Gradio + HF Spaces |
+| **UI** | None | Chat interface with streaming |
+| **Bugs found** | 0 (unknown) | 5 critical bugs fixed |
 
-## 🧠 Tech Stack (v2)
+## Tech Stack (v2)
 
 - **Model:** [Mistral 7B Instruct v0.3 (4-bit MLX)](https://huggingface.co/mlx-community/Mistral-7B-Instruct-v0.3-4bit) — 3.8 GB on disk
-- **Training:** LoRA fine-tuning via [mlx-lm](https://github.com/ml-explore/mlx-lm) on Apple Silicon
-- **Data:** Hybrid — 2,096 real Reddit Q&A pairs + 68 synthetic pairs for under-covered topics
-- **UI:** Gradio chat interface
-- **Hosting:** Hugging Face Spaces (free)
+- **Training:** QLoRA fine-tuning via [mlx-lm](https://github.com/ml-explore/mlx-lm) on Apple Silicon
+- **Data:** 2,096 real Reddit Q&A pairs + 68 synthetic pairs for under-covered topics (dad mental health, single dads, loss, etc.)
+- **UI:** [Gradio](https://gradio.app) chat interface with streaming responses
+- **Local inference:** Fused model (LoRA baked into base weights) for fast generation
+- **Online demo:** [HF Spaces](https://huggingface.co/spaces/benlongi/DadAI) via Inference API
 - **Language:** Python 3.11
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 dadAI/
-├── data/                       # Datasets (raw, cleaned, formatted)
-│   ├── reddit_dataset.jsonl    #   Raw Reddit posts (2,100)
-│   ├── formatted_dataset.jsonl #   Mistral [INST] prompt/completion pairs
-│   ├── cleaned_dataset.jsonl   #   Filtered, deduplicated (2,096)
-│   ├── synthetic_gap_topics.jsonl # Synthetic pairs for under-covered topics (68)
-│   ├── training_dataset.jsonl  #   Final merged dataset (2,164)
-│   └── mlx_training/           #   Train/valid/test splits for mlx-lm
-├── scripts/                    # Data & training pipeline
-│   ├── collect_reddit_data.py  #   Reddit data collection
-│   ├── format_reddit_data.py   #   Convert to Mistral chat format
-│   ├── clean_dataset.py        #   Quality filtering
-│   ├── check_dataset_format.py #   Validation
-│   ├── generate_synthetic_data.py # Synthetic data for gap topics
-│   ├── prepare_training_data.py   # Convert to mlx-lm chat format + split
-│   ├── inference.py            #   Interactive chat with fine-tuned model
-│   └── show_random_sample.py   #   Quick dataset inspection
-├── adapters/                   # LoRA adapters (generated, not committed)
-├── models/                     # Downloaded models (not committed)
-├── lora_finetune/              # v1 fine-tuning scripts (archived)
-├── training_config.yaml        # MLX LoRA training configuration
-├── train.sh                    # One-command training script
-├── Makefile                    # Pipeline commands
-├── .venv/                      # Python virtual environment (not committed)
-├── requirements.txt
-├── .env                        # Reddit API credentials (not committed)
-├── .gitignore
-└── README.md
+├── app.py                         # Gradio chat UI (local, uses fused MLX model)
+├── hf-space/                      # Hugging Face Spaces deployment
+│   ├── app.py                     #   HF demo (Inference API, no local model)
+│   ├── requirements.txt
+│   └── README.md
+├── data/                          # Datasets
+│   ├── reddit_dataset.jsonl       #   Raw Reddit posts (2,100)
+│   ├── formatted_dataset.jsonl    #   Mistral [INST] prompt/completion pairs
+│   ├── cleaned_dataset.jsonl      #   Filtered, deduplicated (2,096)
+│   ├── synthetic_gap_topics.jsonl #   Synthetic pairs for gap topics (68)
+│   ├── training_dataset.jsonl     #   Final merged dataset (2,164)
+│   └── mlx_training/              #   Train/valid/test splits for mlx-lm
+├── scripts/                       # Pipeline scripts
+│   ├── collect_reddit_data.py     #   Reddit data collection (PRAW)
+│   ├── format_reddit_data.py      #   Convert to Mistral chat format
+│   ├── clean_dataset.py           #   Quality filtering & dedup
+│   ├── check_dataset_format.py    #   Validation
+│   ├── generate_synthetic_data.py #   Synthetic data for gap topics
+│   ├── prepare_training_data.py   #   mlx-lm format + token filtering + split
+│   ├── inference.py               #   Interactive CLI chat
+│   ├── evaluate_model.py          #   A/B comparison: base vs fine-tuned
+│   ├── deploy_to_hf.py            #   One-command HF Spaces deployment
+│   └── show_random_sample.py      #   Quick dataset inspection
+├── training_config.yaml           # MLX LoRA training config
+├── train.sh                       # One-command training script
+├── Makefile                       # Pipeline commands
+├── models/                        # Downloaded models (gitignored)
+├── adapters/                      # LoRA adapters (gitignored)
+├── fused_model/                   # Base + LoRA merged (gitignored)
+├── .env                           # Reddit API credentials (gitignored)
+└── .venv/                         # Python virtual environment (gitignored)
 ```
 
-## 🛠️ Setup (v2)
+## Setup
 
 ### Prerequisites
-- macOS with Apple Silicon (M1/M2/M3)
+- macOS with Apple Silicon (M1/M2/M3/M4)
 - [Homebrew](https://brew.sh)
 - 16 GB RAM minimum
 
@@ -107,7 +125,7 @@ python3.11 -m venv .venv
 source .venv/bin/activate
 
 # Install dependencies
-pip install mlx-lm huggingface_hub gradio praw python-dotenv tqdm
+pip install mlx-lm huggingface_hub gradio praw python-dotenv tqdm transformers
 
 # Download the base model (~3.8 GB)
 python -c "
@@ -116,21 +134,25 @@ snapshot_download('mlx-community/Mistral-7B-Instruct-v0.3-4bit', local_dir='mode
 "
 ```
 
-### Quick Test
+### Quick Test (base model, no fine-tuning needed)
 
 ```bash
 python -c "
 from mlx_lm import load, generate
+from mlx_lm.generate import make_sampler
 model, tokenizer = load('models/mistral-7b-instruct-v0.3-4bit')
-response = generate(model, tokenizer, prompt='[INST] I just became a dad. Any advice? [/INST]', max_tokens=256)
-print(response)
+prompt = tokenizer.apply_chat_template(
+    [{'role': 'user', 'content': 'I just became a dad. Any advice?'}],
+    tokenize=False, add_generation_prompt=True
+)
+sampler = make_sampler(temp=0.7, min_p=0.05)
+print(generate(model, tokenizer, prompt=prompt, max_tokens=256, sampler=sampler))
 "
 ```
 
-## 🏋️ Training
+## Training
 
 ```bash
-# Activate environment
 source .venv/bin/activate
 
 # One-command training (prepare data + fine-tune + evaluate)
@@ -138,54 +160,68 @@ source .venv/bin/activate
 
 # Or step by step:
 make prepare    # Convert data to mlx-lm format + split
-make train      # Run LoRA fine-tuning (~30-90 min on M1)
+make train      # Run LoRA fine-tuning (~60-80 min on M1)
 make test       # Evaluate on held-out test set
 make chat       # Interactive chat with fine-tuned model
 ```
 
 **Training details:**
-- **Method:** QLoRA (model is 4-bit quantized, LoRA rank 16)
-- **Key fix from v1:** `--mask-prompt` ensures the model trains only on completions, not prompts
-- **Memory:** Peak ~6 GB (comfortable on 16 GB Mac)
-- **Dataset:** 2,164 examples (2,096 real Reddit + 68 synthetic gap topics)
+- **Method:** QLoRA (model is 4-bit quantized) + LoRA rank 16
+- **Key fix from v1:** `mask_prompt: true` ensures the model only trains on completions
+- **Memory:** Peak ~7 GB (comfortable on 16 GB Mac, other apps keep running)
+- **Dataset:** 2,147 examples after token-length filtering (from 2,164)
+- **Best checkpoint:** Iteration 400 (out of 1,000) — selected via A/B evaluation
+- **NaN fix:** Sequences > 2048 tokens pre-filtered to prevent gradient explosion in 4-bit QLoRA
 - **Config:** See `training_config.yaml` for all hyperparameters
 
-## 💻 Chat UI
+## Chat UI
 
+### Local (full fine-tuned model)
 ```bash
-# Start the Gradio chat interface
 source .venv/bin/activate
 python app.py
 # Open http://localhost:7860
 ```
 
-Features:
-- Clean chat interface with example questions
-- Runs locally on Apple Silicon
-- Model loads in ~5 seconds, responses in 2-10 seconds
+Uses the fused model (LoRA baked into base weights) with streaming responses.
+Loads in ~5 seconds, first token in ~1 second.
 
-## 💬 Status
+### Online demo
+Visit [huggingface.co/spaces/benlongi/DadAI](https://huggingface.co/spaces/benlongi/DadAI)
+
+Uses Mistral 7B via HF Inference API with the DadAI system prompt.
+
+## Key Lessons Learned
+
+1. **Always check your training labels.** v1's biggest bug: the tokenization was wrong, so the model never actually learned from the completions. `mask_prompt` is essential.
+2. **Prompt template consistency matters.** If you train with `[INST]` format, you must infer with `[INST]` format. Use `tokenizer.apply_chat_template()` everywhere.
+3. **MLX makes local fine-tuning real.** In 2025, I spent $5 on RunPod and hit format walls. In 2026, MLX on a MacBook Pro M1 just works — free, fast, no cloud headaches.
+4. **More data is only better if it's clean.** 2,096 filtered Reddit pairs beat 298 noisy ones. Quality > quantity, and 0% bot contamination matters.
+5. **Early stopping wins.** Iteration 400 beat iteration 1000 in A/B testing. More training doesn't always mean better.
+6. **4-bit QLoRA is fragile.** Long sequences cause NaN gradient explosions. Pre-filter by token count.
+7. **Free-tier deployment has real constraints.** HF Spaces OOMs on 7B models — the Inference API is the practical workaround.
+
+## Status
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| 1. Environment | Python 3.11, MLX, virtual env | ✅ Done |
-| 2. Base model | Mistral 7B v0.3 downloaded + verified | ✅ Done |
-| 3. Data pipeline | Fix collection, formatting, cleaning | ✅ Done |
-| 4a. Dataset | Reddit collection — 2,100 posts, 7 subreddits | ✅ Done |
-| 4b. Dataset | Synthetic enhanced responses | ⏭️ Skipped (preserving human voice) |
-| 4c. Dataset | Synthetic pairs for gap topics (68 examples) | ✅ Done |
-| 5. Training setup | LoRA config, scripts, dry-run | ✅ Done |
-| 6. Training run | QLoRA on M1 — 1000 iters, iter-400 selected | ✅ Done |
-| 7. Evaluation | A/B test base vs fine-tuned, 3-way comparison | ✅ Done |
-| 8. Chat UI | Gradio interface with examples | ✅ Done |
-| 9. Deployment | Hugging Face Spaces | 🔜 Next |
+| 1. Environment | Python 3.11, MLX, virtual env | Done |
+| 2. Base model | Mistral 7B v0.3 downloaded + verified | Done |
+| 3. Data pipeline | Fix collection, formatting, cleaning (5 bugs fixed) | Done |
+| 4. Dataset | 2,100 Reddit posts (7 subreddits) + 68 synthetic gap topics | Done |
+| 5. Training | QLoRA on M1 — 1000 iters, iter-400 selected via A/B test | Done |
+| 6. Evaluation | Base vs fine-tuned comparison (fine-tuned wins 5/8) | Done |
+| 7. Chat UI | Gradio interface with streaming + fused model | Done |
+| 8. Deployment | [HF Spaces](https://huggingface.co/spaces/benlongi/DadAI) live | Done |
 
-## 👤 Author
+## Author
 
 **Benoît Rossignol**
-📍 France
-💼 Solution Architect @ Shopify
-🧠 AI Enthusiast & Builder
-
+- Based in France
+- Solution Architect @ Shopify
 - [GitHub](https://github.com/brossign)
 - [LinkedIn](https://www.linkedin.com/in/benoit-rossignol/)
+
+## License
+
+MIT

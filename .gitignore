@@ -126,6 +126,9 @@ models/
 # LoRA adapters (generated during training, can be large)
 adapters/
 
+# Fused model output (base + LoRA merged)
+fused_model/
+
 # Ignore heavy downloaded model files, but keep readme/gitignore
 localai/models/*
 !localai/models/.gitignore
