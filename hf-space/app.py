@@ -10,7 +10,7 @@ from huggingface_hub import InferenceClient
 # Configuration
 # ---------------------------------------------------------------------------
 
-MODEL_ID = "mistralai/Mistral-7B-Instruct-v0.3"
+MODEL_ID = "mistralai/Mistral-7B-Instruct-v0.2"
 
 SYSTEM_PROMPT = (
     "You are DadAI, a supportive and experienced father who gives advice "
@@ -27,28 +27,31 @@ MAX_NEW_TOKENS = 512
 
 client = InferenceClient(token=os.environ.get("HF_TOKEN"))
 
+
 # ---------------------------------------------------------------------------
-# Chat function — Gradio 5.x ChatInterface with type="messages"
+# Chat logic
 # ---------------------------------------------------------------------------
 
-def respond(message: str, history: list) -> str:
-    """Generate a response (non-streaming for maximum compatibility)."""
-    if not message.strip():
+def respond(message, history):
+    """Generate a response from the HF Inference API."""
+    if not message or not message.strip():
         return "Please type a question!"
 
     messages = [
         {"role": "user", "content": f"{SYSTEM_PROMPT}\n\n{message}"},
     ]
 
-    response = client.chat_completion(
-        model=MODEL_ID,
-        messages=messages,
-        max_tokens=MAX_NEW_TOKENS,
-        temperature=0.7,
-        top_p=0.9,
-    )
-
-    return response.choices[0].message.content
+    try:
+        response = client.chat_completion(
+            model=MODEL_ID,
+            messages=messages,
+            max_tokens=MAX_NEW_TOKENS,
+            temperature=0.7,
+            top_p=0.9,
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Sorry, something went wrong: {e}"
 
 
 # ---------------------------------------------------------------------------
@@ -62,7 +65,9 @@ demo = gr.ChatInterface(
         "**DadAI** is a supportive AI fine-tuned on real parenting conversations "
         "from Reddit. It responds with empathy and practical wisdom — like a "
         "friend who's been through it all.\n\n"
-        "*Built with Mistral 7B + LoRA, trained locally on a MacBook Pro M1.*"
+        "*Built with Mistral 7B + LoRA, trained locally on a MacBook Pro M1. "
+        "[GitHub](https://github.com/brossign/dadAI) "
+        "| Created by [Benoît Rossignol](https://www.linkedin.com/in/benoit-rossignol/)*"
     ),
     examples=[
         "My wife just told me she's pregnant and I'm terrified.",
