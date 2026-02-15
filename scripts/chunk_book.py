@@ -1,24 +1,25 @@
 #!/usr/bin/env python3
 """
-DadAI v3 — Step 1: Extract and chunk book PDFs for RAG
+DadAI v3 — Step 1: Extract and chunk books for RAG
 
-Reads a PDF book, extracts text, and splits it into meaningful chunks
-for the vector database. Handles three types of content:
+Reads a book (EPUB or PDF), extracts text, and splits it into meaningful
+chunks for the vector database.
 
-1. Narrative passages — split by section headers + size limits
-2. Q&A pairs — each question/answer becomes its own chunk
-3. Key quotes — grouped by chapter
+Chunking strategy:
+  - Split text by chapter (using EPUB structure or headings)
+  - Within each chapter, group paragraphs into ~300-word chunks
+  - Overlap between chunks to preserve context at boundaries
 
 Output: JSONL file with chunks, each containing:
   - text: the chunk content
   - source: book title
-  - chapter: chapter number/name
-  - chunk_type: "narrative", "qa", or "quote"
-  - page: approximate page number
+  - chapter: chapter name
+  - chunk_type: "narrative"
 
 Usage:
     python scripts/chunk_book.py
-    python scripts/chunk_book.py --input books/my_book.pdf --output data/rag_chunks.jsonl
+    python scripts/chunk_book.py --input books/my_book.epub
+    python scripts/chunk_book.py --input books/my_book.pdf
 """
 
 import argparse
@@ -26,177 +27,146 @@ import json
 import re
 from pathlib import Path
 
-import fitz  # PyMuPDF
+
+# ---------------------------------------------------------------------------
+# Text extraction
+# ---------------------------------------------------------------------------
+
+def extract_chapters_from_epub(epub_path: str) -> list[dict]:
+    """Extract chapter text from an EPUB file, preserving paragraph structure."""
+    import ebooklib
+    from ebooklib import epub
+    from bs4 import BeautifulSoup
+
+    book = epub.read_epub(epub_path)
+    chapters = []
+
+    for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
+        name = item.get_name()
+        soup = BeautifulSoup(item.get_content(), 'html.parser')
+
+        # Get plain text length to skip short items
+        plain = soup.get_text(strip=True)
+        if len(plain) < 500:
+            continue
+
+        # Skip bibliography, table of contents, copyright
+        skip_patterns = ['biblio', 'toc', 'copy', 'dedication', 'halftitle']
+        if any(pat in name.lower() for pat in skip_patterns):
+            continue
+
+        # Extract paragraph-separated text using HTML <p> tags
+        paragraphs = []
+        for tag in soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'blockquote']):
+            text = tag.get_text(separator=' ', strip=True)
+            if text:
+                paragraphs.append(text)
+
+        text = '\n\n'.join(paragraphs)
+
+        # Extract chapter title from first heading
+        heading = soup.find(['h1', 'h2', 'h3'])
+        if heading:
+            chapter_title = heading.get_text(strip=True)
+        else:
+            chapter_title = name.replace('.html', '').replace('_', ' ').title()
+
+        chapters.append({
+            "title": chapter_title,
+            "text": text,
+        })
+
+    return chapters
 
 
-def extract_text_from_pdf(pdf_path: str) -> str:
-    """Extract all text from a PDF file."""
+def extract_chapters_from_pdf(pdf_path: str) -> list[dict]:
+    """Extract text from a PDF as a single chapter (less structured)."""
+    import fitz
+
     doc = fitz.open(pdf_path)
-    pages = []
-    for page in doc:
-        pages.append(page.get_text())
+    full_text = "\n".join(page.get_text() for page in doc)
     doc.close()
-    return "\n".join(pages)
+
+    # Clean Bookey artifacts if present
+    full_text = re.sub(r'--\s*\d+\s+of\s+\d+\s*--', '', full_text)
+    full_text = re.sub(r'Install Bookey App to Unlock Full Text and\s*Audio', '', full_text)
+    full_text = re.sub(r'Written by Bookey', '', full_text)
+
+    return [{"title": "Full Text", "text": full_text}]
 
 
-def clean_text(text: str) -> str:
-    """Clean extracted text: remove page markers, fix whitespace."""
-    # Remove Bookey page markers like "-- 1 of 103 --"
-    text = re.sub(r'--\s*\d+\s+of\s+\d+\s*--', '', text)
-    # Remove Bookey promo lines
-    text = re.sub(r'Install Bookey App to Unlock Full Text and\s*Audio', '', text)
-    text = re.sub(r'Check more about .+ Summary', '', text)
-    text = re.sub(r'Listen .+ Audiobook', '', text)
-    text = re.sub(r'Written by Bookey', '', text)
-    text = re.sub(r'View on Bookey Website.*', '', text)
-    text = re.sub(r'Check the Correct Answer on Bookey Website', '', text)
-    # Collapse multiple newlines
+# ---------------------------------------------------------------------------
+# Chunking
+# ---------------------------------------------------------------------------
+
+def clean_chapter_text(text: str) -> str:
+    """Clean a chapter's text for chunking."""
+    # Normalize whitespace within lines
+    text = re.sub(r'[ \t]+', ' ', text)
+    # Collapse 3+ newlines into 2
     text = re.sub(r'\n{3,}', '\n\n', text)
     return text.strip()
 
 
-def extract_qa_pairs(text: str) -> list[dict]:
-    """Extract Q&A pairs from the book's Q&A sections."""
+def chunk_chapter(chapter_title: str, text: str,
+                  max_chunk_words: int = 300,
+                  overlap_words: int = 50) -> list[dict]:
+    """Split a chapter into overlapping word-based chunks."""
+    text = clean_chapter_text(text)
+
+    # Split into paragraphs
+    paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+
     chunks = []
+    current_words = []
 
-    # Match patterns like "1.Question\nWhat does..." followed by "Answer:..."
-    qa_pattern = re.compile(
-        r'(\d+)\.\s*Question\s*\n(.+?)\n\s*Answer:\s*(.+?)(?=\n\d+\.\s*Question|\nChapter \d|\Z)',
-        re.DOTALL
-    )
+    for para in paragraphs:
+        para_words = para.split()
 
-    for match in qa_pattern.finditer(text):
-        question = match.group(2).strip()
-        answer = match.group(3).strip()
-
-        # Clean up the answer
-        answer = re.sub(r'\s+', ' ', answer)
-        question = re.sub(r'\s+', ' ', question)
-
-        if len(answer) > 50:  # Skip very short/broken answers
-            chunks.append({
-                "text": f"Q: {question}\n\nA: {answer}",
-                "chunk_type": "qa",
-            })
-
-    return chunks
-
-
-def extract_quotes(text: str) -> list[dict]:
-    """Extract key quotes from the quotes sections."""
-    chunks = []
-
-    # Match numbered quotes like "1.these father signifiers are empty."
-    quote_pattern = re.compile(
-        r'(?:^|\n)\d+\.\s*(.+?)(?=\n\d+\.|\nChapter \d|\Z)',
-        re.DOTALL
-    )
-
-    # Find quotes sections
-    quotes_sections = re.finditer(
-        r'Quotes From Pages \d+-\d+\s*\n(.+?)(?=Chapter \d|Best Quotes|Quiz and Test|\Z)',
-        text, re.DOTALL
-    )
-
-    for section in quotes_sections:
-        section_text = section.group(1)
-        for match in quote_pattern.finditer(section_text):
-            quote = match.group(1).strip()
-            quote = re.sub(r'\s+', ' ', quote)
-            if len(quote) > 30 and len(quote) < 500:
+        # If adding this paragraph exceeds the limit, save current chunk
+        if len(current_words) + len(para_words) > max_chunk_words and current_words:
+            chunk_text = ' '.join(current_words)
+            if len(chunk_text) > 100:  # Skip tiny chunks
                 chunks.append({
-                    "text": f'"{quote}"',
-                    "chunk_type": "quote",
-                })
-
-    return chunks
-
-
-def extract_narrative_chunks(text: str, max_chunk_size: int = 800, overlap: int = 100) -> list[dict]:
-    """Extract narrative passages from chapter summaries."""
-    chunks = []
-
-    # Find chapter summary sections
-    chapter_pattern = re.compile(
-        r'(Chapter \d+ Summary\s*:\s*\d+\.\s*(.+?)\n)(.*?)(?=Chapter \d+ Summary|Best Quotes|Absent Fathers, Lost Sons Questions|\Z)',
-        re.DOTALL
-    )
-
-    for match in chapter_pattern.finditer(text):
-        chapter_name = match.group(2).strip()
-        content = match.group(3).strip()
-
-        # Remove Q&A sections from narrative (we handle those separately)
-        content = re.sub(r'\d+\.\s*Question\s*\n.+?Answer:.+?(?=\n\d+\.\s*Question|\Z)', '', content, flags=re.DOTALL)
-
-        # Remove "Example" and "Critical Thinking" headers but keep content
-        content = re.sub(r'\n(Example|Critical Thinking)\n', '\n', content)
-
-        # Split into paragraphs
-        paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
-
-        # Group paragraphs into chunks of ~max_chunk_size characters
-        current_chunk = ""
-        for para in paragraphs:
-            para_clean = re.sub(r'\s+', ' ', para)
-            if len(para_clean) < 30:
-                continue
-
-            if len(current_chunk) + len(para_clean) > max_chunk_size and current_chunk:
-                chunks.append({
-                    "text": current_chunk.strip(),
+                    "text": chunk_text,
+                    "chapter": chapter_title,
                     "chunk_type": "narrative",
-                    "chapter": chapter_name,
                 })
-                # Keep overlap
-                words = current_chunk.split()
-                overlap_words = words[-overlap // 5:] if len(words) > overlap // 5 else []
-                current_chunk = " ".join(overlap_words) + " " + para_clean
-            else:
-                current_chunk += (" " if current_chunk else "") + para_clean
+            # Keep overlap for context continuity
+            current_words = current_words[-overlap_words:] + para_words
+        else:
+            current_words.extend(para_words)
 
-        if current_chunk.strip() and len(current_chunk.strip()) > 50:
+    # Don't forget the last chunk
+    if current_words:
+        chunk_text = ' '.join(current_words)
+        if len(chunk_text) > 100:
             chunks.append({
-                "text": current_chunk.strip(),
+                "text": chunk_text,
+                "chapter": chapter_title,
                 "chunk_type": "narrative",
-                "chapter": chapter_name,
             })
 
     return chunks
 
 
-def extract_section_summaries(text: str) -> list[dict]:
-    """Extract the section summary tables (compact concept descriptions)."""
-    chunks = []
-
-    # Match section summary rows: "Section Name | Description"
-    # These appear as table-like structures in the text
-    section_pattern = re.compile(
-        r'Section Summary\n(.+?)(?=\n(?:Chapter \d|The \w))',
-        re.DOTALL
-    )
-
-    for match in section_pattern.finditer(text):
-        table_text = match.group(1).strip()
-        # Each row is a concept + description
-        rows = [r.strip() for r in table_text.split('\n') if r.strip() and len(r.strip()) > 30]
-        for row in rows:
-            chunks.append({
-                "text": row,
-                "chunk_type": "section_summary",
-            })
-
-    return chunks
-
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="Chunk a book PDF for RAG")
-    parser.add_argument("--input", default="books/Absent Fathers, Lost Sons PDF.pdf",
-                        help="Path to the PDF file")
+    parser = argparse.ArgumentParser(description="Chunk a book for RAG")
+    parser.add_argument(
+        "--input",
+        default="books/Absent Fathers, Lost Sons. The Search for Masculine Identity - Guy Corneau.epub",
+        help="Path to the book file (EPUB or PDF)"
+    )
     parser.add_argument("--output", default="data/rag_chunks.jsonl",
                         help="Output JSONL file for chunks")
-    parser.add_argument("--max-chunk-size", type=int, default=800,
-                        help="Max characters per narrative chunk")
+    parser.add_argument("--max-chunk-words", type=int, default=300,
+                        help="Max words per chunk (default: 300)")
+    parser.add_argument("--overlap-words", type=int, default=50,
+                        help="Overlap words between chunks (default: 50)")
     args = parser.parse_args()
 
     input_path = Path(args.input)
@@ -204,44 +174,54 @@ def main():
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     if not input_path.exists():
-        print(f"Error: PDF not found: {input_path}")
+        print(f"Error: Book not found: {input_path}")
         raise SystemExit(1)
 
-    # Extract and clean text
-    print(f"Reading PDF: {input_path}")
-    raw_text = extract_text_from_pdf(str(input_path))
-    text = clean_text(raw_text)
+    # Extract chapters based on file type
+    ext = input_path.suffix.lower()
+    if ext == '.epub':
+        print(f"Reading EPUB: {input_path.name}")
+        chapters = extract_chapters_from_epub(str(input_path))
+    elif ext == '.pdf':
+        print(f"Reading PDF: {input_path.name}")
+        chapters = extract_chapters_from_pdf(str(input_path))
+    else:
+        print(f"Error: Unsupported format: {ext} (use .epub or .pdf)")
+        raise SystemExit(1)
 
-    book_title = "Absent Fathers, Lost Sons"
-    print(f"Extracted {len(text):,} characters of text")
+    total_chars = sum(len(c["text"]) for c in chapters)
+    print(f"Extracted {total_chars:,} characters from {len(chapters)} chapters")
 
-    # Extract different chunk types
-    print("\nChunking...")
-    qa_chunks = extract_qa_pairs(text)
-    print(f"  Q&A pairs:         {len(qa_chunks)}")
+    # Derive book title from filename
+    book_title = input_path.stem.split(' - ')[0].strip()
+    if len(book_title) > 60:
+        book_title = book_title[:60]
+    print(f"Book: {book_title}")
 
-    quote_chunks = extract_quotes(text)
-    print(f"  Key quotes:        {len(quote_chunks)}")
-
-    narrative_chunks = extract_narrative_chunks(text, max_chunk_size=args.max_chunk_size)
-    print(f"  Narrative passages: {len(narrative_chunks)}")
-
-    section_chunks = extract_section_summaries(text)
-    print(f"  Section summaries: {len(section_chunks)}")
-
-    # Combine all chunks
+    # Chunk each chapter
+    print(f"\nChunking (max {args.max_chunk_words} words/chunk, {args.overlap_words} overlap)...")
     all_chunks = []
-    for chunk in qa_chunks + quote_chunks + narrative_chunks + section_chunks:
-        chunk["source"] = book_title
-        all_chunks.append(chunk)
 
-    print(f"\n  Total chunks:      {len(all_chunks)}")
+    for chapter in chapters:
+        chapter_chunks = chunk_chapter(
+            chapter["title"],
+            chapter["text"],
+            max_chunk_words=args.max_chunk_words,
+            overlap_words=args.overlap_words,
+        )
+        for chunk in chapter_chunks:
+            chunk["source"] = book_title
+        all_chunks.extend(chapter_chunks)
+        print(f"  {chapter['title'][:50]:50s} → {len(chapter_chunks):3d} chunks")
 
-    # Show stats
-    lengths = [len(c["text"]) for c in all_chunks]
-    print(f"  Avg chunk size:    {sum(lengths) // len(lengths)} chars")
-    print(f"  Min chunk size:    {min(lengths)} chars")
-    print(f"  Max chunk size:    {max(lengths)} chars")
+    print(f"\n  Total chunks: {len(all_chunks)}")
+
+    # Stats
+    word_counts = [len(c["text"].split()) for c in all_chunks]
+    char_counts = [len(c["text"]) for c in all_chunks]
+    print(f"  Avg chunk:    {sum(word_counts) // len(word_counts)} words / {sum(char_counts) // len(char_counts)} chars")
+    print(f"  Min chunk:    {min(word_counts)} words")
+    print(f"  Max chunk:    {max(word_counts)} words")
 
     # Write output
     with open(output_path, "w", encoding="utf-8") as f:
@@ -250,17 +230,18 @@ def main():
 
     print(f"\nSaved {len(all_chunks)} chunks to {output_path}")
 
-    # Show samples
+    # Show samples from different chapters
     print("\n" + "=" * 60)
-    print("Sample chunks:")
+    print("Sample chunks (first 300 chars each):")
     print("=" * 60)
 
-    for chunk_type in ["qa", "quote", "narrative", "section_summary"]:
-        samples = [c for c in all_chunks if c["chunk_type"] == chunk_type]
-        if samples:
-            sample = samples[0]
-            print(f"\n--- {chunk_type.upper()} ---")
-            print(sample["text"][:300] + ("..." if len(sample["text"]) > 300 else ""))
+    shown_chapters = set()
+    for chunk in all_chunks:
+        ch = chunk["chapter"]
+        if ch not in shown_chapters and len(shown_chapters) < 4:
+            shown_chapters.add(ch)
+            print(f"\n--- [{ch}] ---")
+            print(chunk["text"][:300] + ("..." if len(chunk["text"]) > 300 else ""))
 
 
 if __name__ == "__main__":
