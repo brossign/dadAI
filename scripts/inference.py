@@ -12,6 +12,7 @@ Usage:
 
 import argparse
 from mlx_lm import load, generate
+from mlx_lm.generate import make_sampler
 
 
 SYSTEM_PROMPT = (
@@ -93,13 +94,13 @@ def main():
 
         prompt = build_prompt(user_input, tokenizer)
 
+        sampler = make_sampler(temp=args.temp, min_p=0.05)
         response = generate(
             model,
             tokenizer,
             prompt=prompt,
             max_tokens=args.max_tokens,
-            temp=args.temp,
-            repetition_penalty=1.1,
+            sampler=sampler,
         )
 
         print(f"\nDadAI: {response}")
